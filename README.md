@@ -9,6 +9,7 @@ INFORMATION_GOES_HERE
 
 ```
 npm install peer-tracker
+
 ```
 
 ## Usage
@@ -16,3 +17,10 @@ npm install peer-tracker
 EXAMPLE_USAGE_GOES_HERE
 
 ```
+
+
+
+
+## license
+
+MIT. Copyright (c) [Craig OConnor](http://connor-craig.us).
