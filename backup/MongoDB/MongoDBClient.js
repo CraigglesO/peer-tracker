@@ -9,9 +9,9 @@ function MongoDBClient() {
   EventEmitter.call(this);
 }
 
-MongoDBClient.prototype.create = function(hash, name, peer) {
+MongoDBClient.prototype.create = function(hash, peer) {
   let time = Date.now();
-  const newKey = new Key({ hash: hash, name: name, complete: 1, incomplete: 0, peers: [ peer ], lastAccess: time });
+  const newKey = new Key({ hash: hash, complete: 1, incomplete: 0, peers: [ peer ], lastAccess: time });
   newKey.save(function (err) {
     if (err) return handleError(err);
   });

@@ -11,3 +11,7 @@ const udp = new udpClient(8000, '0.0.0.0', '45F7C21FE88C389DD24D6523678C17C91706
 udp.on('message', (res) => {
   console.log(res);
 });
+
+
+// exports.ACTIONS = { CONNECT: 0, ANNOUNCE: 1, SCRAPE: 2, ERROR: 3 }
+// exports.EVENTS = { update: 0, completed: 1, started: 2, stopped: 3 }

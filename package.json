@@ -2,10 +2,10 @@
   "name": "peer-tracker",
   "version": "0.0.0",
   "description": "Lightweight BitTorrent Tracker Client & Server Implementation",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "babel-node index.js",
+    "start": "node server.js",
     "build": "...",
     "git-commit": "git add -A . && git commit -a -m 'gh-pages update'",
     "git-push": "git push origin gh-pages --force && git checkout master",
@@ -22,10 +22,16 @@
     "babel-preset-es2015": "^6.18.0"
   },
   "dependencies": {
+    "axios": "^0.15.3",
     "bittorrent-peerid": "^1.1.1",
     "compact2string": "^1.4.0",
+    "express": "^4.14.0",
+    "lodash": "^4.17.4",
     "mongoose": "^4.7.6",
+    "redis": "^2.6.3",
+    "response-time": "^2.3.2",
     "string2compact": "^1.2.2",
+    "uniq": "^1.0.1",
     "ws": "^1.1.1"
   }
 }

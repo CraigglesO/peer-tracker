@@ -1,50 +1,31 @@
-const EventEmitter = require('events').EventEmitter;
-const inherits = require('inherits');
 var dgram = require('dgram');
-var client = dgram.createSocket('udp4');
+var client = dgram.createSocket('udp6');
 
-inherits(udpClient, EventEmitter);
+const type = 'udp6';
+const port = 1337;
+const host = '0.0.0.0';
 
-function udpClient(port, host, hash) {
-  const that = this;
-  EventEmitter.call(this);
+client = dgram.createSocket({ type: 'udp6', reuseAddr: true });
 
-  this.port = port;
-  this.host = host;
-  this.hash = hash;
-  this.client = dgram.createSocket({ type: 'udp4', reuseAddr: true });
-  this.client.on('message', function (msg, rinfo) {
-    msg = msg.toString();
-    msg = JSON.parse(msg);
-    that.emit('message', msg);
+client.on('message', function (msg, rinfo) {
+  msg = msg.toString();
+  msg = JSON.parse(msg);
+  console.log(msg);
+  client.close();
+});
+
+let msg = {a: 2, e: 1, h: '45F7C21FE88C389DD24D6523678C17C9170648A7'};
+msg = JSON.stringify(msg);
+msg = new Buffer(msg);
+
+if (type === 'udp4') {
+  client.send(msg, 0, msg.length, port, host, (err) => {
+      if (err) { console.log('Error: ', err); }
   });
 }
 
-udpClient.prototype.announce = function(action, payload) {
-  var that = this;
-
-  var message = {
-    h: this.hash,
-    a: action,
-    p: payload,
-  }
-  message = JSON.stringify(message);
-  message = new Buffer(message);
-
-  this.client.send(message, 0, message.length, this.port, this.host, function(err, bytes) {
-      if (err) throw err;
+if (type === 'udp6') {
+  client.send(msg, 0, msg.length, port, '::1', (err) => {
+      if (err) { console.log('Error: ', err); }
   });
 }
-
-
-module.exports = udpClient;
-
-// a - action:
-//  1 - announce
-//  2 - scrape
-//  3 - new torrent file
-//  4 - new peer (incomplete) - get peers
-//  5 - complete
-//  6 - leaving
-// h - hash:
-//

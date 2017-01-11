@@ -13,5 +13,7 @@ pids
 logs
 results
 
+dump.rdb
+
 node_modules
 npm-debug.log

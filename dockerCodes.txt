@@ -1,0 +1,28 @@
+https://github.com/wsargent/docker-cheat-sheet
+
+(nginx Node and Redis docker images)
+http://anandmanisankar.com/posts/docker-container-nginx-node-redis-example/
+
+https://nodejs.org/en/docs/guides/nodejs-docker-webapp/ (setup node docker)
+
+
+
+
+# Build the file:
+docker build -t oconnorct1/peertracker .
+
+#tag the file
+docker tag 4d7dc0ffcee2 oconnorct1/peertracker:latest
+
+
+# get the logs from a docker image:
+docker logs 4d7dc0ffcee2
+
+# get basic running information from a docker image:
+docker inspect 4d7dc0ffcee2
+
+#Get redis up and running:
+docker run --name redis -d -p 6379:6379 oconnorct1/redis
+
+#Get peer tracker up and running:
+ docker run -d --name peertracker --link redis:redis -p 1337:1337 -p 8080:8080 -i -t peertracker
