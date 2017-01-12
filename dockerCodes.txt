@@ -17,7 +17,7 @@ docker build -t oconnorct1/peertracker .
 docker images
 
 # Tag the file
-docker tag 4d7dc0ffcee2 oconnorct1/peertracker:latest
+docker tag 4de48917b0c0 oconnorct1/peertracker:latest
 
 # Push your results:
 docker push oconnorct1/peertracker:latest
@@ -30,15 +30,13 @@ docker inspect 4d7dc0ffcee2
 
 # Get redis and some node servers up and running:
 docker run --name redis -d -p 6379:6379 oconnorct1/redis
-docker run -d --name node1 --link redis:redis -p 1337:1337 -p 1337:1337/udp -p 8080:8080 -i -t oconnorct1/peertracker:latest
-docker run -d --name node2 --link redis:redis -p 1337:1337 -p 1337:1337/udp -p 8080:8080 -i -t oconnorct1/peertracker:latest
-docker run -d --name node3 --link redis:redis -p 1337:1337 -p 1337:1337/udp -p 8080:8080 -i -t oconnorct1/peertracker:latest
+docker run -d --name node1 --link redis:redis -p 1337 -p 1337/udp -i -t oconnorct1/peertracker:latest
+docker run -d --name node2 --link redis:redis -p 1337 -p 1337/udp -i -t oconnorct1/peertracker:latest
+docker run -d --name node3 --link redis:redis -p 1337 -p 1337/udp -i -t oconnorct1/peertracker:latest
 
 # Get the nginx server up:
-docker run -d --name nginx -p 80:80 --link node1:node1 --link node2:node2 --link node3:node3 oconnorct1/nginx
+docker run -d --name nginx -p 8080:80 --link node1:node1 --link node2:node2 --link node3:node3 oconnorct1/nginx
 
-#Get peer tracker up and running:
-docker run -d --name peertracker --link redis:redis -p 1337:1337 -p 8080:8080 -i -t peertracker
 
 docker run --rm --interactive --tty oconnorct1/peertracker:latest npm install && npm test
 docker run -d --name node1 -p 1337:1337 -p 1337:1337/udp -p 8080:8080 -i -t oconnorct1/peertracker:latest
