@@ -5,6 +5,8 @@ http://anandmanisankar.com/posts/docker-container-nginx-node-redis-example/
 
 https://nodejs.org/en/docs/guides/nodejs-docker-webapp/ (setup node docker)
 
+(ensure ipv6)
+https://github.com/robbertkl/docker-ipv6nat
 
 
 
@@ -23,6 +25,7 @@ docker inspect 4d7dc0ffcee2
 
 #Get redis up and running:
 docker run --name redis -d -p 6379:6379 oconnorct1/redis
+docker run -d --name peertracker --link redis:redis -p 1337:1337 -p 1337:1337/udp -p 8080:8080 -i -t oconnorct1/peertracker:latest
 
 #Get peer tracker up and running:
  docker run -d --name peertracker --link redis:redis -p 1337:1337 -p 8080:8080 -i -t peertracker

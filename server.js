@@ -18,7 +18,8 @@ const MAX_PEER_SIZE = 75;
 app.use(responseTime());
 
 //Redis
-var client = redis.createClient('6379', 'redis');
+// var client = redis.createClient('6379', 'redis');
+var client = redis.createClient();
 
 // if an error occurs, print it to the console
 client.on('error', function (err) {
@@ -40,6 +41,9 @@ app.get('/announce/:number/:hash/:EVENT', function (req, res) {
   if (peerName === '::1'){
     peerName = '127.0.0.1';
   }
+  if (peerName.substr(0, 7) == "::ffff:") {
+    peerName = peerName.substr(7);
+  }
   let number = req.params.number;
   let hash = req.params.hash;
   let EVENT = req.params.EVENT;
@@ -56,6 +60,12 @@ server.listen(port, function () { console.log('HTTP Express Listening on ' + ser
 
 // WebSocket
 wss.on('connection', function connection(ws) {
+  let sa = ws._socket.address() //{ port: 8081, family: 2, address: '127.0.0.1' }
+  let ra = ws._socket.remoteAddress //'74.125.224.194'
+  let rp = ws._socket.remotePort //41435
+  console.log('socket address: ', sa);
+  console.log('socket remote address: ', ra);
+  console.log('socket rp: ', rp);
   var location = url.parse(ws.upgradeReq.url, true);
   var peerName = ws.upgradeReq.headers['x-forwarded-for'] || ws.upgradeReq.connection.remoteAddress;
   if (peerName.substr(0, 7) == "::ffff:") {
@@ -207,7 +217,6 @@ function handleMessage(action, hash, EVENT, peerName, location, cb) {
             });
           }
         });
-
       } else if (EVENT == 1) {
         client.get(hash + ':peers', (err, reply) => {
           if (err) {
@@ -246,7 +255,6 @@ function handleMessage(action, hash, EVENT, peerName, location, cb) {
         result = JSON.stringify(result);
         cb(result);
       }
-
       client.get(hash + ':peers', (err, reply) => {
         if (err) {
           result = { r: 'error' };
