@@ -96,8 +96,7 @@ wss.on('connection', function connection(ws) {
 udp4.on('message', function (msg, rinfo) {
   handleMessage(msg, rinfo.address, rinfo.port, (reply) => {
     udp4.send(reply, 0, reply.length, rinfo.port, rinfo.address, (err) => {
-      if (err) { console.log('error: ', err)};
-      console.log('sent to ' + rinfo.address + ' at port ' + rinfo.port);
+      if (err) { console.log('udp4 error: ', err)};
     });
   });
 });
@@ -109,7 +108,6 @@ udp4.bind(serverPort);
 // MESSAGE FUNCTIONS:
 
 function handleMessage(msg, peerAddress, port, cb) {
-  console.log('new guy from ' + peerAddress + ' and port: ' + port);
   // PACKET SIZES:
   // CONNECT: 16 - ANNOUNCE: 98 - SCRAPE: 16 OR (16 + 20 * n)
   let buf              = new Buffer(msg),
@@ -121,8 +119,6 @@ function handleMessage(msg, peerAddress, port, cb) {
       hash             = null,
       responce         = null;
 
-  console.log(buf.toString('hex'));
-  console.log(buf.length);
   // Ensure packet fullfills the minimal 16 byte requirement.
   if (bufLength < 16) {
     ERROR();
@@ -133,11 +129,6 @@ function handleMessage(msg, peerAddress, port, cb) {
     action           = buf.readUInt32BE(8),    // 8     32-bit integer  action           0 // connect 1 // announce 2 // scrape 3 // error
     transaction_id   = buf.readUInt32BE(12);   // 12    32-bit integer  transaction_id
   }
-
-  console.log(connectionIdHigh);
-  console.log(connectionIdLow);
-  console.log(action);
-  console.log(transaction_id);
 
   switch (action){
     case ACTION_CONNECT:
@@ -165,7 +156,6 @@ function handleMessage(msg, peerAddress, port, cb) {
       break;
 
     case ACTION_ANNOUNCE:
-      console.log('announce request');
       //Checks to make sure the packet is worth analyzing:
       // 1. packet is atleast 40 bytes
       if (bufLength < 84) {
@@ -190,12 +180,9 @@ function handleMessage(msg, peerAddress, port, cb) {
           return;
         }
 
-        console.log('LEFT:', LEFT);
-        console.log('event: ',EVENT);
         // Check EVENT // 0: none; 1: completed; 2: started; 3: stopped
         // If 1, 2, or 3 do sets first.
         if (EVENT === 1) {
-          console.log('E 1 was called');
           // Change the array this peer is housed in.
           removePeer(peerAddress+':'+peerPort, hash+':leechers');
           addPeer(peerAddress+':'+peerPort, hash+':seeders');
@@ -203,7 +190,6 @@ function handleMessage(msg, peerAddress, port, cb) {
           client.incr(hash+':completed');
           addHash(hash);
         } else if (EVENT === 2) {
-          console.log('E 2 was called');
           // Add to array (leecher array if LEFT is > 0)
           if (LEFT > 0)
             addPeer(peerAddress+':'+peerPort, hash+':leechers');
@@ -211,7 +197,6 @@ function handleMessage(msg, peerAddress, port, cb) {
             addPeer(peerAddress+':'+peerPort, hash+':seeders');
           return;
         } else if (EVENT === 3) {
-          console.log('E 3 was called');
           // Remove peer from array (leecher array if LEFT is > 0)
           if (LEFT > 0)
             removePeer(peerAddress+':'+peerPort, hash+':leechers');
@@ -238,7 +223,6 @@ function handleMessage(msg, peerAddress, port, cb) {
           responce.writeUInt32BE(addresses[1], 16);            // 16          32-bit integer  seeders
           responce = Buffer.concat([responce, addresses[2]]);  // 20 + 6 * n  32-bit integer  IP address
                                                                // 24 + 6 * n  16-bit integer  TCP port
-          console.log('sending announce responce');
           cb(responce);
 
         });
@@ -251,18 +235,13 @@ function handleMessage(msg, peerAddress, port, cb) {
       // 2. check that Transaction ID and Connection ID match
       client.incr('scrape');
 
-
-
-      console.log('scrape request...');
       // FOR NOW WE JUST NEED THIS:
       hash = buf.slice(16,36);
       hash = hash.toString('hex');
-      console.log('hash: ', hash);
 
       client.mget([hash+':seeders', hash+':leechers', hash+':completed'], (err, rply) => {
         if ( err ) { ERROR(); return; }
 
-        console.log('rply: ', rply);
         //convert all addresses to a proper hex buffer:
         let addresses = addrToBuffer(rply[0], rply[1], 1);
         // addresses return: 0 - leechers; 1 - seeders; 2 - hexedUp address-port pairs; 3 - resulting buffersize
@@ -275,7 +254,6 @@ function handleMessage(msg, peerAddress, port, cb) {
         responce.writeUInt32BE(addresses[1], 8);     // 8 + 12 * n  32-bit integer  seeders
         responce.writeUInt32BE(rply[2], 12);         // 12 + 12 * n 32-bit integer  completed
         responce.writeUInt32BE(addresses[0], 16);    // 16 + 12 * n 32-bit integer  leechers
-        console.log('sending scrape response...');
         cb(responce);
       });
       break;
@@ -285,7 +263,6 @@ function handleMessage(msg, peerAddress, port, cb) {
   }
 
   function ERROR() {
-    console.log('error..');
     responce = new buffer(11);
     responce.fill(0);
 
@@ -297,15 +274,13 @@ function handleMessage(msg, peerAddress, port, cb) {
 
   function addPeer(peer, where) {
     client.get(where, (err, reply) => {
-      if (err) { console.log('error getting peers...'); }
+      if (err) { return; }
       else {
         if (!reply)
           reply = peer;
         else
           reply = peer + ',' + reply;
-        console.log(reply);
         reply = reply.split(',');
-        console.log(reply);
         reply = _.uniq(reply);
         // Keep the list under 50;
         if (reply.length > 50) {
@@ -319,7 +294,7 @@ function handleMessage(msg, peerAddress, port, cb) {
 
   function removePeer(peer, where) {
     client.get(where, (err, reply) => {
-      if (err) { console.log('error getting peers...'); }
+      if (err) { return; }
       else {
         reply = reply.split(',');
         let index = reply.indexOf(peer);
@@ -341,7 +316,6 @@ function handleMessage(msg, peerAddress, port, cb) {
         peerBuffer     = null,
         peerBufferSize = 0;
 
-    console.log('s: ',seeders);
     if (LEFT == 0 || !seeders || seeders == '')
       seeders = new Buffer(0);
     else {
@@ -406,15 +380,18 @@ function handleMessage(msg, peerAddress, port, cb) {
   }
 
   function getHashes() {
-    client.get('hashes', (err, reply) {
+    let r = client.get('hashes', (err, reply) {
       if (err) { return null; }
       reply = reply.split(',');
       return reply;
     });
+    return r;
   }
 
   function updateStatus() {
-
+    // Get hashes -> iterate through hashes and get all peers and leechers
+    // Also get number of scrapes 'scrape'
+    // Number of active hashes hash+':time'
   }
 }
 
