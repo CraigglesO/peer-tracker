@@ -25,7 +25,9 @@ docker inspect 4d7dc0ffcee2
 
 #Get redis up and running:
 docker run --name redis -d -p 6379:6379 oconnorct1/redis
-docker run -d --name peertracker --link redis:redis -p 1337:1337 -p 1337:1337/udp -p 8080:8080 -i -t oconnorct1/peertracker:latest
+docker run -d --name peertracker1 --link redis:redis -p 1337:1337 -p 1337:1337/udp -p 8080:8080 -i -t oconnorct1/peertracker:latest
+docker run -d --name peertracker2 --link redis:redis -p 1337:1337 -p 1337:1337/udp -p 8080:8080 -i -t oconnorct1/peertracker:latest
+docker run -d --name peertracker3 --link redis:redis -p 1337:1337 -p 1337:1337/udp -p 8080:8080 -i -t oconnorct1/peertracker:latest
 
 #Get peer tracker up and running:
  docker run -d --name peertracker --link redis:redis -p 1337:1337 -p 8080:8080 -i -t peertracker
