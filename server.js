@@ -30,7 +30,7 @@ const FOUR_AND_FIFTEEN_DAYS = 415 * 24 * 60 * 60;//assuming start time is second
 app.use(responseTime());
 
 // Redis
-var client = redis.createClient();
+var client = redis.createClient('6379', 'redis');
 
 // If an error occurs, print it to the console
 client.on('error', function (err) {
@@ -367,7 +367,7 @@ function handleMessage(msg, peerAddress, port, cb) {
 
   //Add a new hash to the swarm, ensure uniqeness
   function addHash(hash) {
-    client.get('hashes', (err, reply) {
+    client.get('hashes', (err, reply) => {
       if (err) { return; }
       if (!reply)
         reply = hash;
@@ -380,7 +380,7 @@ function handleMessage(msg, peerAddress, port, cb) {
   }
 
   function getHashes() {
-    let r = client.get('hashes', (err, reply) {
+    let r = client.get('hashes', (err, reply) => {
       if (err) { return null; }
       reply = reply.split(',');
       return reply;
