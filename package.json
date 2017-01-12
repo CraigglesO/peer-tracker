@@ -1,10 +1,10 @@
 {
   "name": "peer-tracker",
-  "version": "0.0.0",
+  "version": "0.3.0",
   "description": "Lightweight BitTorrent Tracker Client & Server Implementation",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "./node_modules/.bin/readuint64be",
     "start": "node server.js",
     "build": "...",
     "git-commit": "git add -A . && git commit -a -m 'gh-pages update'",
