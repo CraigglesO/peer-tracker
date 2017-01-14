@@ -2,7 +2,7 @@
 FROM ubuntu
 
 # File Author / Maintainer
-MAINTAINER Anand Mani Sankar
+MAINTAINER Craig OConnor
 
 # Install Nginx
 

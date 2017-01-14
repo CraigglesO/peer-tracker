@@ -7,6 +7,7 @@ const server                = require('http').createServer()
     , dgram                 = require('dgram')
     , udp4                  = dgram.createSocket({ type: 'udp4', reuseAddr: true })
     , app                   = express()
+    , readUInt64BE          = require('readUInt64BE')
     , buffer                = require('buffer').Buffer
     , serverPort            = 1337
     , ACTION_CONNECT        = 0
@@ -17,19 +18,23 @@ const server                = require('http').createServer()
     , startConnectionIdHigh = 0x417
     , startConnectionIdLow  = 0x27101980;
 
-const responseTime = require('response-time');
-const redis = require('redis');
-const _ = require("lodash");
+const responseTime    = require('response-time');
+const redis           = require('redis');
+const _               = require('lodash');
+const GeoIpNativeLite = require('geoip-native-lite');
+
+// Load in GeoData
+GeoIpNativeLite.loadDataSync();
 
 // Without using streams, this can handle ~320 IPv4 addresses. More doesn't necessarily mean better.
 const MAX_PEER_SIZE = 50;
-const FOUR_AND_FIFTEEN_DAYS = 415 * 24 * 60 * 60;//assuming start time is seconds for redis;
+const FOUR_AND_FIFTEEN_DAYS = 415 * 24 * 60 * 60; //assuming start time is seconds for redis;
 
 // set up the response-time middleware
 app.use(responseTime());
 
 // Redis
-var client = redis.createClient('6379', 'redis');
+var client = redis.createClient();
 
 // If an error occurs, print it to the console
 client.on('error', function (err) {
@@ -46,7 +51,27 @@ app.get('/', function (req, res) {
 });
 
 app.get('/stat', function (req,res) {
-  res.status(202).send('This will be a stat page..');
+  // { seedCount, leechCount, torrentCount, activeTcount, scrapeCount, successfulDown, countries };
+  updateStatus((info) => {
+    console.log(info);
+    let parsedResponce = `<h1>${info.torrentCount} Torrents {${info.activeTcount} active}</h1>\n
+                          <h2>Successful Downloads: ${info.successfulDown}</h2>\n
+                          <h2>Number of Scrapes to this tracker: ${info.scrapeCount}</h2>\n
+                          <h3>Connected Peers: ${info.seedCount+info.leechCount}</h3>\n
+                          <h3><ul>Seeders: ${info.seedCount}</ul></h3>\n
+                          <h3><ul>Leechers: ${info.leechCount}</ul></h3>\n
+                          <h3>Countries that have connected: <h3>\n
+                          <ul>`;
+
+    let countries;
+    for (countries in info.countries) {
+      parsedResponce += `<li>${info.countries[countries]}</li>\n`;
+    }
+
+    parsedResponce += '</ul>';
+
+    res.status(202).send(parsedResponce);
+  });
 });
 
 //Handling an http request:
@@ -96,6 +121,7 @@ udp4.on('message', function (msg, rinfo) {
   handleMessage(msg, rinfo.address, rinfo.port, (reply) => {
     udp4.send(reply, 0, reply.length, rinfo.port, rinfo.address, (err) => {
       if (err) { console.log('udp4 error: ', err)};
+      console.log('sent to: ', rinfo.address, ' port: ', rinfo.port);
     });
   });
 });
@@ -107,6 +133,7 @@ udp4.bind(serverPort);
 // MESSAGE FUNCTIONS:
 
 function handleMessage(msg, peerAddress, port, cb) {
+  console.log('connection occured... address: ' + peerAddress + ' and port: ' + port);
   // PACKET SIZES:
   // CONNECT: 16 - ANNOUNCE: 98 - SCRAPE: 16 OR (16 + 20 * n)
   let buf              = new Buffer(msg),
@@ -116,7 +143,13 @@ function handleMessage(msg, peerAddress, port, cb) {
       connectionIdHigh = null,
       connectionIdLow  = null,
       hash             = null,
-      responce         = null;
+      responce         = null,
+      PEER_ID          = null,
+      PEER_ADDRESS     = null,
+      PEER_KEY         = null,
+      NUM_WANT         = null,
+      peerPort         = port,
+      peers            = null;
 
   // Ensure packet fullfills the minimal 16 byte requirement.
   if (bufLength < 16) {
@@ -128,9 +161,15 @@ function handleMessage(msg, peerAddress, port, cb) {
     action           = buf.readUInt32BE(8),    // 8     32-bit integer  action           0 // connect 1 // announce 2 // scrape 3 // error
     transaction_id   = buf.readUInt32BE(12);   // 12    32-bit integer  transaction_id
   }
+  console.log('hash: ', buf.toString('hex'));
+  console.log('connectionIdHigh: ', connectionIdHigh);
+  console.log('connectionIdLow: ', connectionIdLow);
+  console.log('action: ', action);
+  console.log('transaction_id: ', transaction_id);
 
   switch (action){
     case ACTION_CONNECT:
+      console.log('connect request: ');
       //Check whether the transaction ID is equal to the one you chose.
       if (startConnectionIdLow !== connectionIdLow || startConnectionIdHigh !== connectionIdHigh) {
         ERROR();
@@ -139,8 +178,10 @@ function handleMessage(msg, peerAddress, port, cb) {
       // Create a new Connection ID and Transaction ID for this user... kill after 30 seconds:
       let newConnectionIDHigh = ~~((Math.random()*100000)+1);
       let newConnectionIDLow  = ~~((Math.random()*100000)+1);
-      client.setex(peerAddress + ':' + newConnectionIDHigh, 30, 1);
-      client.setex(peerAddress + ':' + newConnectionIDLow , 30, 1);
+      client.setex(peerAddress + ':' + newConnectionIDHigh, 60, 1);
+      client.setex(peerAddress + ':' + newConnectionIDLow, 60, 1);
+      client.setex(peerAddress + ':' + startConnectionIdLow, 60, 1);
+      client.setex(peerAddress + ':' + startConnectionIdHigh, 60, 1);
       //client.setex(peerAddress + ':' + transaction_id     , 30 * 1000, 1); // THIS MIGHT BE WRONG
 
       // Create a responce buffer:
@@ -151,10 +192,13 @@ function handleMessage(msg, peerAddress, port, cb) {
       responce.writeUInt32BE(transaction_id, 4);       // 4       32-bit integer  transaction_id
       responce.writeUInt32BE(newConnectionIDHigh, 8);  // 8       64-bit integer  connection_id
       responce.writeUInt32BE(newConnectionIDLow, 12);   // 8       64-bit integer  connection_id
+      console.log('send connection packet back...');
       cb(responce);
       break;
 
     case ACTION_ANNOUNCE:
+      console.log();
+      console.log('action request made..');
       //Checks to make sure the packet is worth analyzing:
       // 1. packet is atleast 40 bytes
       if (bufLength < 84) {
@@ -162,22 +206,41 @@ function handleMessage(msg, peerAddress, port, cb) {
         break;
       }
       // FOR NOW WE JUST NEED THIS:
-      hash = buf.slice(16,36);
-      hash = hash.toString('hex');
-      let LEFT     = readUInt64BE(buf, 64),
-          EVENT    = buf.readUInt32BE(80),
-          peerPort = port,
-          peers    = null;
+      hash             = buf.slice(16,36);
+      hash             = hash.toString('hex');
+      PEER_ID          = buf.slice(36,56);  //-WD0017-I0mH4sMSAPOJ && -LT1000-9BjtQhMtTtTc
+      PEER_ID          = PEER_ID.toString();
+      let DOWNLOADED   = readUInt64BE(buf, 56),
+          LEFT         = readUInt64BE(buf, 64),
+          UPLOADED     = readUInt64BE(buf, 72),
+          EVENT        = buf.readUInt32BE(80);
 
+      console.log('hash: ', hash);
+      console.log('peer id: ', PEER_ID);
+      console.log('A-downloaded: ', DOWNLOADED);
+      console.log('A-LEFT: ', LEFT);
+      console.log('A-uploaded: ', UPLOADED);
+      console.log('A-EVENT: ', EVENT);
+      console.log('A-peerPort: ', port);
       if (bufLength > 96) {
-        peerPort = buf.readUInt16BE(96);
+        console.log('96 bits long!');
+        PEER_ADDRESS = buf.readUInt16BE(84);
+        PEER_KEY     = buf.readUInt16BE(88);
+        NUM_WANT     = buf.readUInt16BE(92);
+        peerPort     = buf.readUInt16BE(96);
+        console.log('peer address: ', PEER_ADDRESS);
+        console.log('peer key: ', PEER_KEY);
+        console.log('num want: ', NUM_WANT);
+        console.log('peerPort-after: ', peerPort);
       }
       // 2. check that Transaction ID and Connection ID match
       client.mget([peerAddress + ':' + connectionIdHigh, peerAddress + ':' + connectionIdLow], (err, reply) => {
         if ( !reply[0] || !reply[1] || err ) {
+          console.log('damn.. stuck here...');
           ERROR();
           return;
         }
+        console.log('peer+connection WORKED!');
 
         // Check EVENT // 0: none; 1: completed; 2: started; 3: stopped
         // If 1, 2, or 3 do sets first.
@@ -189,23 +252,21 @@ function handleMessage(msg, peerAddress, port, cb) {
           client.incr(hash+':completed');
           addHash(hash);
         } else if (EVENT === 2) {
+          console.log('EVENT 2 CALLED');
           // Add to array (leecher array if LEFT is > 0)
           if (LEFT > 0)
             addPeer(peerAddress+':'+peerPort, hash+':leechers');
           else
             addPeer(peerAddress+':'+peerPort, hash+':seeders');
-          return;
         } else if (EVENT === 3) {
           // Remove peer from array (leecher array if LEFT is > 0)
-          if (LEFT > 0)
-            removePeer(peerAddress+':'+peerPort, hash+':leechers');
-          else
-            removePeer(peerAddress+':'+peerPort, hash+':seeders');
+          removePeer(peerAddress+':'+peerPort, hash+':leechers');
+          removePeer(peerAddress+':'+peerPort, hash+':seeders');
           return;
         }
 
         client.mget([hash+':seeders', hash+':leechers'], (err, rply) => {
-          if ( err ) { ERROR(); return; }
+          if ( err ) { console.log('error 7'); ERROR(); return; }
 
           // Convert all addresses to a proper hex buffer:
           // Addresses return: 0 - leechers; 1 - seeders; 2 - hexedUp address-port pairs; 3 - resulting buffersize
@@ -222,6 +283,7 @@ function handleMessage(msg, peerAddress, port, cb) {
           responce.writeUInt32BE(addresses[1], 16);            // 16          32-bit integer  seeders
           responce = Buffer.concat([responce, addresses[2]]);  // 20 + 6 * n  32-bit integer  IP address
                                                                // 24 + 6 * n  16-bit integer  TCP port
+          console.log('SEND PACKET BACK: ');
           cb(responce);
 
         });
@@ -230,6 +292,7 @@ function handleMessage(msg, peerAddress, port, cb) {
       break;
 
     case ACTION_SCRAPE:
+      console.log('SCRAPE CALLED...');
       //Check whether the transaction ID is equal to the one you chose.
       // 2. check that Transaction ID and Connection ID match
       client.incr('scrape');
@@ -239,7 +302,7 @@ function handleMessage(msg, peerAddress, port, cb) {
       hash = hash.toString('hex');
 
       client.mget([hash+':seeders', hash+':leechers', hash+':completed'], (err, rply) => {
-        if ( err ) { ERROR(); return; }
+        if ( err ) { ERROR(); console.log('error1'); return; }
 
         //convert all addresses to a proper hex buffer:
         let addresses = addrToBuffer(rply[0], rply[1], 1);
@@ -273,12 +336,14 @@ function handleMessage(msg, peerAddress, port, cb) {
 
   function addPeer(peer, where) {
     client.get(where, (err, reply) => {
-      if (err) { return; }
+      if (err) { console.log('error here2'); return; }
       else {
         if (!reply)
           reply = peer;
         else
           reply = peer + ',' + reply;
+
+        console.log('peer to add: ', peer);
         reply = reply.split(',');
         reply = _.uniq(reply);
         // Keep the list under 50;
@@ -293,15 +358,20 @@ function handleMessage(msg, peerAddress, port, cb) {
 
   function removePeer(peer, where) {
     client.get(where, (err, reply) => {
-      if (err) { return; }
+      if (err) { console.log('ERROR 3 here..'); return; }
       else {
-        reply = reply.split(',');
-        let index = reply.indexOf(peer);
-        if (index > 0) {
-          reply.splice(index, 1);
+        if (!reply)
+          return
+        else {
+          console.log('peer to remove: ', peer);
+          reply = reply.split(',');
+          let index = reply.indexOf(peer);
+          if (index > -1) {
+            reply.splice(index, 1);
+          }
+          reply = reply.join(',');
+          client.set(where, reply);
         }
-        reply = reply.join(',');
-        client.set(where, reply);
       }
     });
   }
@@ -360,6 +430,7 @@ function handleMessage(msg, peerAddress, port, cb) {
     }
 
     peerBuffer = Buffer.concat([seeders, leechers]);
+    console.log('peerBuffer: ', peerBuffer);
     // Addresses return: 0 - leechers; 1 - seeders; 2 - hexedUp address-port pairs; 3 - resulting buffersize
     return [leecherCount, seederCount, peerBuffer];
   }
@@ -367,12 +438,14 @@ function handleMessage(msg, peerAddress, port, cb) {
   //Add a new hash to the swarm, ensure uniqeness
   function addHash(hash) {
     client.get('hashes', (err, reply) => {
-      if (err) { return; }
+      if (err) { console.log('error4'); return; }
       if (!reply)
         reply = hash;
       else
         reply = hash + ',' + reply;
+      reply = reply.split(',');
       reply = _.uniq(reply);
+      reply = reply.join(',');
       client.set('hashes', reply);
       client.set(hash+':time', Date.now());
     });
@@ -380,91 +453,84 @@ function handleMessage(msg, peerAddress, port, cb) {
 
   function getHashes() {
     let r = client.get('hashes', (err, reply) => {
-      if (err) { return null; }
+      if (err) { console.log('error5'); return null; }
       reply = reply.split(',');
       return reply;
     });
     return r;
   }
 
-  function updateStatus() {
-    // Get hashes -> iterate through hashes and get all peers and leechers
-    // Also get number of scrapes 'scrape'
-    // Number of active hashes hash+':time'
-  }
 }
 
+function updateStatus(cb) {
+  // TODO: Get client versions
+  // Get hashes -> iterate through hashes and get all peers and leechers
+  // Also get number of scrapes 'scrape'
+  // Number of active hashes hash+':time'
+  var NOW            = Date.now(),
+      seedCount      = 0,  //check
+      leechCount     = 0,  //check
+      torrentCount   = 0,  //check
+      activeTcount   = 0,  //check
+      scrapeCount    = 0,  //check
+      successfulDown = 0,  //check
+      countries      = {};
 
-// KEEP TRACK OF HOW MANY HASH KEYS THERE ARE
+  client.get('hashes', (err, reply) => {
+    if (!reply)
+      return
+    let hashList = reply.split(',');
+    torrentCount = hashList.length;
+    hashList.forEach((hash, i) => {
+      client.mget([hash+':seeders', hash+':leechers', hash+':time', hash+':completed'], (err, rply) => {
+        if (err) { return; }
+        // iterate through:
+        //seeders
+        if (rply[0]){
+          rply[0] = rply[0].split(',');
+          seedCount += rply[0].length;
+          rply[0].forEach((addr) => {
+            let ip = addr.split(':')[0];
+            let country = GeoIpNativeLite.lookup(ip);
+            if (country)
+              countries[country] = country.toUpperCase();
+          });
+        }
+        if (rply[1]){
+          rply[1] = rply[1].split(',');
+          seedCount += rply[1].length;
+          rply[1].forEach((addr) => {
+            let ip = addr.split(':')[0];
+            let country = GeoIpNativeLite.lookup(ip);
+            if (country)
+              countries[country] = country.toUpperCase();
+          });
+        }
+        if (rply[2]) {
+          if (((NOW - rply[2]) / 1000) < 432000)
+            activeTcount++;
+        }
+        if (rply[3]) {
+          successfulDown += Number(rply[3]);
+        }
+        if (i === (torrentCount - 1)) {
+          cb({ seedCount, leechCount, torrentCount, activeTcount, scrapeCount, successfulDown, countries });
+        }
+      });
 
-function readUInt64BE(buf, offset) {
-  if (offset){
-    buf = buf.slice(offset, offset + 8);
-  }
-  // create a hex equivalent string:
-  let str = buf.toString('hex');
-  str = str.split('');
-  let solution = 0;
-  let mul = 15;
-  str.forEach((num) => {
-    let dec = getDecimal(num);
-    solution += dec * Math.pow(16,mul);
-    mul--;
+    });
   });
-  return solution;        // (value position 0 * 16^15) + (value position 1 * 16^14) + ... +  (value position 7 * 16^0)
+
+  client.get('scrape', (err, rply) => {
+    if (err) { return; }
+    if (!rply)
+      return
+    scrapeCount = rply;
+  });
+
 }
 
-function getDecimal(hex) {
-  switch (hex) {
-    case '0':
-      return 0;
-      break;
-    case '1':
-      return 1;
-      break;
-    case '2':
-      return 2;
-      break;
-    case '3':
-      return 3;
-      break;
-    case '4':
-      return 4;
-      break;
-    case '5':
-      return 5;
-      break;
-    case '6':
-      return 6;
-      break;
-    case '7':
-      return 7;
-      break;
-    case '8':
-      return 8;
-      break;
-    case '9':
-      return 9;
-      break;
-    case 'a':
-      return 10;
-      break;
-    case 'b':
-      return 11;
-      break;
-    case 'c':
-      return 12;
-      break;
-    case 'd':
-      return 13;
-      break;
-    case 'e':
-      return 14;
-      break;
-    case 'f':
-      return 15;
-      break;
-    default :
-      return 0;
-  }
-}
+
+//TODO: Convert to typescript
+//TODO: Add a page for information!
+//TODO: JSON

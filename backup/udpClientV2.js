@@ -1,10 +1,10 @@
 var dgram = require('dgram');
-var client = dgram.createSocket('udp6');
+var client = dgram.createSocket('udp4');
 
-const type = 'udp6';
+const type = 'udp4';
 const port = 1337;
 
-client = dgram.createSocket({ type: 'udp6', reuseAddr: true });
+client = dgram.createSocket({ type: 'udp4', reuseAddr: true });
 
 client.on('message', function (msg, rinfo) {
   console.log(rinfo);
@@ -19,7 +19,7 @@ msg = JSON.stringify(msg);
 msg = new Buffer(msg);
 
 if (type === 'udp4') {
-  client.send(msg, 0, msg.length, port, '138.197.92.39', (err) => {
+  client.send(msg, 0, msg.length, port, '0.0.0.0', (err) => {
       if (err) { console.log('Error: ', err); }
   });
 }

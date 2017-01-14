@@ -1,5 +1,5 @@
 var WebSocket = require('ws');
-var ws = new WebSocket('ws://138.197.92.39:1337');
+var ws = new WebSocket('ws://0.0.0.0:1337');
 
 ws.on('open', function open() {
 

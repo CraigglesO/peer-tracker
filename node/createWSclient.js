@@ -2,7 +2,7 @@
 const udpClient = require('./wsClient');
 
 // udp1 = new udpClient('tracker.coppersurfer.tk', 6969, "02a7cd7bce95af47328406734cc42db591f78782");
-udp1 = new udpClient('138.197.92.39', 1337, "02a7cd7bce95af47328406734cc42db591f78782");
+udp1 = new udpClient('0.0.0.0', 1337, "02a7cd7bce95af47328406734cc42db591f78782");
 //02a7cd7bce95af47328406734cc42db591f78782
 //02a7cd7bce95af47328406734cc42db591f78782
 udp1.on('listening', (address) => {
