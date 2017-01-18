@@ -9,6 +9,7 @@ const server                = require('http').createServer()
     , app                   = express()
     , readUInt64BE          = require('readUInt64BE')
     , buffer                = require('buffer').Buffer
+    , bencode               = require('bencode')
     , serverPort            = 1337
     , ACTION_CONNECT        = 0
     , ACTION_ANNOUNCE       = 1
@@ -18,7 +19,8 @@ const server                = require('http').createServer()
     , startConnectionIdHigh = 0x417
     , startConnectionIdLow  = 0x27101980;
 
-const responseTime    = require('response-time');
+const debug           = require('debug')('PeerTracker:Server');
+//const responseTime    = require('response-time');
 const redis           = require('redis');
 const _               = require('lodash');
 const GeoIpNativeLite = require('geoip-native-lite');
@@ -27,11 +29,11 @@ const GeoIpNativeLite = require('geoip-native-lite');
 GeoIpNativeLite.loadDataSync();
 
 // Without using streams, this can handle ~320 IPv4 addresses. More doesn't necessarily mean better.
-const MAX_PEER_SIZE = 50;
+const MAX_PEER_SIZE         = 50;
 const FOUR_AND_FIFTEEN_DAYS = 415 * 24 * 60 * 60; //assuming start time is seconds for redis;
 
 // set up the response-time middleware
-app.use(responseTime());
+//app.use(responseTime());
 
 // Redis
 var client = redis.createClient();
@@ -44,38 +46,58 @@ client.on('ready', function() {
   console.log('Redis is up and running.');
 });
 
+//Keep statistics going, update every 30 min
+var stats = {};
+updateStatus((info) => {
+  stats = info;
+});
+setInterval(() => {
+  console.log(Date.now());
+  updateStatus((info) => {
+    stats = info;
+  });
+}, 30 * 60 * 1000);
+
 // Express
 
 app.get('/', function (req, res) {
   res.status(202).send('Hello World!');
 });
 
+app.get('/scrape', function (req, res) {
+  let infohash = req.query.info_hash;
+  //let responce = httpScrapeRequest(infohash);
+  res.status(202).send('Scrape responce goes here');
+});
+
+app.get('/stat.json', function (req,res) {
+  updateStatus((info) => {
+    res.status(202).send(info);
+  })
+});
+
 app.get('/stat', function (req,res) {
   // { seedCount, leechCount, torrentCount, activeTcount, scrapeCount, successfulDown, countries };
-  updateStatus((info) => {
-    console.log(info);
-    let parsedResponce = `<h1>${info.torrentCount} Torrents {${info.activeTcount} active}</h1>\n
-                          <h2>Successful Downloads: ${info.successfulDown}</h2>\n
-                          <h2>Number of Scrapes to this tracker: ${info.scrapeCount}</h2>\n
-                          <h3>Connected Peers: ${info.seedCount+info.leechCount}</h3>\n
-                          <h3><ul>Seeders: ${info.seedCount}</ul></h3>\n
-                          <h3><ul>Leechers: ${info.leechCount}</ul></h3>\n
-                          <h3>Countries that have connected: <h3>\n
-                          <ul>`;
+  let parsedResponce = `<h1>${stats.torrentCount} Torrents {${stats.activeTcount} active}</h1>\n
+                        <h2>Successful Downloads: ${stats.successfulDown}</h2>\n
+                        <h2>Number of Scrapes to this tracker: ${stats.scrapeCount}</h2>\n
+                        <h3>Connected Peers: ${stats.seedCount+stats.leechCount}</h3>\n
+                        <h3><ul>Seeders: ${stats.seedCount}</ul></h3>\n
+                        <h3><ul>Leechers: ${stats.leechCount}</ul></h3>\n
+                        <h3>Countries that have connected: <h3>\n
+                        <ul>`;
 
-    let countries;
-    for (countries in info.countries) {
-      parsedResponce += `<li>${info.countries[countries]}</li>\n`;
-    }
+  let countries;
+  for (countries in stats.countries)
+    parsedResponce += `<li>${stats.countries[countries]}</li>\n`;
 
-    parsedResponce += '</ul>';
+  parsedResponce += '</ul>';
 
-    res.status(202).send(parsedResponce);
-  });
+  res.status(202).send(parsedResponce);
 });
 
 //Handling an http request:
-app.get('/announce/:number/:hash/:EVENT', function (req, res) {
+app.get('/announce', function (req, res) {
 
   let peerName = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
   if (peerName === '::1'){
@@ -84,12 +106,13 @@ app.get('/announce/:number/:hash/:EVENT', function (req, res) {
   if (peerName.substr(0, 7) == "::ffff:") {
     peerName = peerName.substr(7);
   }
-  let number = req.params.number;
-  let hash = req.params.hash;
-  let EVENT = req.params.EVENT;
-  handleMessage(msg, peerAddress, port, (reply) => {
-    res.send(reply);
-  });
+  let request = req.query;
+  // request = bencode.decode(request);
+  console.log(request);
+  res.send('This will be an announce responce');
+  // handleHttpMessage(msg, peerAddress, port, (reply) => {
+  //   res.send(reply);
+  // });
 
 });
 
@@ -161,7 +184,7 @@ function handleMessage(msg, peerAddress, port, cb) {
     action           = buf.readUInt32BE(8),    // 8     32-bit integer  action           0 // connect 1 // announce 2 // scrape 3 // error
     transaction_id   = buf.readUInt32BE(12);   // 12    32-bit integer  transaction_id
   }
-  console.log('hash: ', buf.toString('hex'));
+  console.log('buffer: ', buf.toString('hex'));
   console.log('connectionIdHigh: ', connectionIdHigh);
   console.log('connectionIdLow: ', connectionIdLow);
   console.log('action: ', action);

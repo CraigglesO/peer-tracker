@@ -28,7 +28,7 @@ function Client (trackerHost, port, infoHash) {
   self.SCRAPE = true;
 
   self.DOWNLOADED = 0;
-  self.LEFT = 0;
+  self.LEFT = 1;
   self.UPLOADED = 0;
   self.KEY = 0;
   self.IP_ADDRESS = 0; // default unless behind a proxy
