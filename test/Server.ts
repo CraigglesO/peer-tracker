@@ -8,3 +8,5 @@ test("Server test", (t) => {
 
   t.end();
 });
+
+// let server = new Server();

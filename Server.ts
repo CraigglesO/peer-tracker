@@ -9,10 +9,10 @@ import { Buffer }           from "buffer";
 import * as redis           from "redis";
 import * as _               from "lodash";
 import * as debug from "debug";
-debug("PeerTracker:Server")
+debug("PeerTracker:Server");
 
 const GeoIpNativeLite = require("geoip-native-lite");
-const bencode = require("bencode")
+const bencode = require("bencode");
 
 // Load in GeoData
 GeoIpNativeLite.loadDataSync();
@@ -65,10 +65,10 @@ client.on("ready", function() {
 });
 
 class Server {
-  server: any
-  wss:    WebSocketServer
-  udp4:   any
-  app:    express
+  server: any;
+  wss:    WebSocketServer;
+  udp4:   any;
+  app:    express;
   constructor() {
     const self = this;
     self.server                = createServer();
@@ -76,8 +76,6 @@ class Server {
     self.udp4                  = dgram.createSocket({ type: "udp4", reuseAddr: true });
     self.app                   = express();
     // Express
-
-    console.log('HERE!!!');
 
     self.app.get("/", function (req, res) {
       res.status(202).send("Welcome to the Empire.");
@@ -113,7 +111,7 @@ class Server {
 
     self.server.on("request", self.app.bind(self));
 
-    self.server.listen(80, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + ".") });
+    self.server.listen(80, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + "."); });
 
 
     // WebSocket:

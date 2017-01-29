@@ -38,7 +38,6 @@ class Server {
         self.wss = new WebSocketServer.Server({ server: self.server });
         self.udp4 = dgram.createSocket({ type: "udp4", reuseAddr: true });
         self.app = express();
-        console.log('HERE!!!');
         self.app.get("/", function (req, res) {
             res.status(202).send("Welcome to the Empire.");
         });
