@@ -9,6 +9,8 @@
 
 ### Lightweight BitTorrent Tracker Client & Server Implementation
 
+<div style="text-align:center"><img src ="https://github.com/CraigglesO/peer-tracker/blob/master/img/tracker.png" /></div>
+
 The first of it's kind! A smart persistant Bittorent tracker.
 
 Using a Redis server, memory will be stored intermittently to ensure speed and efficiency over memory, as some loss in peers is ok.
