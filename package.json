@@ -1,8 +1,8 @@
 {
   "name": "peer-tracker",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Lightweight BitTorrent Tracker Client & Server Implementation",
-  "main": "./out/index.js",
+  "main": "./out/peer-tracker.js",
   "scripts": {
     "test": "echo running server tests... && cd test && ts-node ../node_modules/blue-tape/bin/blue-tape \"**/*.ts\" | tap-spec",
     "start": "npm run build:live",
