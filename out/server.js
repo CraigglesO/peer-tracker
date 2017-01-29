@@ -21,7 +21,7 @@ let stats = {
     successfulDown: 0,
     countries: {}
 };
-const serverPort = 1337, ACTION_CONNECT = 0, ACTION_ANNOUNCE = 1, ACTION_SCRAPE = 2, ACTION_ERROR = 3, INTERVAL = 1801, startConnectionIdHigh = 0x417, startConnectionIdLow = 0x27101980;
+const udpServerPort = 1337, ACTION_CONNECT = 0, ACTION_ANNOUNCE = 1, ACTION_SCRAPE = 2, ACTION_ERROR = 3, INTERVAL = 1801, startConnectionIdHigh = 0x417, startConnectionIdLow = 0x27101980;
 const MAX_PEER_SIZE = 1500;
 const FOUR_AND_FIFTEEN_DAYS = 415 * 24 * 60 * 60;
 const client = redis.createClient();
@@ -32,8 +32,9 @@ client.on("ready", function () {
     console.log("Redis is up and running.");
 });
 class Server {
-    constructor() {
+    constructor(port) {
         const self = this;
+        self.PORT = port;
         self.server = http_1.createServer();
         self.wss = new WebSocketServer.Server({ server: self.server });
         self.udp4 = dgram.createSocket({ type: "udp4", reuseAddr: true });
@@ -63,7 +64,7 @@ class Server {
             res.status(404).send("<h1>404 Not Found</h1>");
         });
         self.server.on("request", self.app.bind(self));
-        self.server.listen(80, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + "."); });
+        self.server.listen((self.PORT) ? self.PORT : 80, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + "."); });
         self.wss.on("connection", function connection(ws) {
             console.log("incoming WS...");
             let peerAddress = ws._socket.remoteAddress;
@@ -86,7 +87,7 @@ class Server {
         });
         self.udp4.on("error", function (err) { console.log("error", err); });
         self.udp4.on("listening", () => { console.log("UDP-4 Bound to 1337."); });
-        self.udp4.bind(serverPort);
+        self.udp4.bind(udpServerPort);
         self.updateStatus((info) => {
             stats = info;
         });

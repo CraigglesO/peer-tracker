@@ -38,7 +38,7 @@ interface Stats {
   countries: Object;
 }
 
-const serverPort            = 1337
+const udpServerPort         = 1337
     , ACTION_CONNECT        = 0
     , ACTION_ANNOUNCE       = 1
     , ACTION_SCRAPE         = 2
@@ -65,16 +65,18 @@ client.on("ready", function() {
 });
 
 class Server {
+  PORT:   number;
   server: any;
   wss:    WebSocketServer;
   udp4:   any;
   app:    express;
-  constructor() {
-    const self = this;
-    self.server                = createServer();
-    self.wss                   = new WebSocketServer.Server({ server: self.server });
-    self.udp4                  = dgram.createSocket({ type: "udp4", reuseAddr: true });
-    self.app                   = express();
+  constructor(port?: number) {
+    const self   = this;
+    self.PORT    = port;
+    self.server  = createServer();
+    self.wss     = new WebSocketServer.Server({ server: self.server });
+    self.udp4    = dgram.createSocket({ type: "udp4", reuseAddr: true });
+    self.app     = express();
     // Express
 
     self.app.get("/", function (req, res) {
@@ -111,7 +113,7 @@ class Server {
 
     self.server.on("request", self.app.bind(self));
 
-    self.server.listen(80, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + "."); });
+    self.server.listen((self.PORT) ? self.PORT : 80, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + "."); });
 
 
     // WebSocket:
@@ -145,7 +147,7 @@ class Server {
     });
     self.udp4.on("error", function (err) { console.log("error", err); });
     self.udp4.on("listening", () => { console.log("UDP-4 Bound to 1337."); } );
-    self.udp4.bind(serverPort);
+    self.udp4.bind(udpServerPort);
 
     self.updateStatus((info) => {
       stats = info;
