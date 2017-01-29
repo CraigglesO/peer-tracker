@@ -1,4 +1,3 @@
-<div align="center">
 # peer-tracker [![travis][travis-image]][travis-url] [![npm][npm-image]][npm-url] [![downloads][downloads-image]][downloads-url]
 
 [travis-image]: https://travis-ci.org/CraigglesO/peer-tracker.svg?branch=master
@@ -9,6 +8,8 @@
 [downloads-url]: https://npmjs.org/package/peer-tracker
 
 ### Lightweight BitTorrent Tracker Client & (Persistent) Server Implementation
+
+<div align="center">
 <img src ="https://github.com/CraigglesO/peer-tracker/blob/master/img/tracker.png" /></div>
 
 The first of it's kind! A smart persistent Bittorent tracker.
