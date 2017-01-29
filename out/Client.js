@@ -1,23 +1,17 @@
 "use strict";
-var __extends = (this && this.__extends) || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-};
-var events_1 = require("events");
-var buffer_1 = require("buffer");
-var dgram = require("dgram");
-var debug = require("debug");
+const events_1 = require("events");
+const buffer_1 = require("buffer");
+const dgram = require("dgram");
+const debug = require("debug");
 debug("trackerClient");
-var writeUInt64BE = require("writeUInt64BE"), ACTION_CONNECT = 0, ACTION_ANNOUNCE = 1, ACTION_SCRAPE = 2, ACTION_ERROR = 3;
-var connectionIdHigh = 0x417, connectionIdLow = 0x27101980;
-var UdpTracker = (function (_super) {
-    __extends(UdpTracker, _super);
-    function UdpTracker(type, trackerHost, port, myPort, infoHash, left, uploaded, downloaded) {
-        var _this = _super.call(this) || this;
-        if (!(_this instanceof UdpTracker))
+const writeUInt64BE = require("writeUInt64BE"), ACTION_CONNECT = 0, ACTION_ANNOUNCE = 1, ACTION_SCRAPE = 2, ACTION_ERROR = 3;
+let connectionIdHigh = 0x417, connectionIdLow = 0x27101980;
+class UdpTracker extends events_1.EventEmitter {
+    constructor(type, trackerHost, port, myPort, infoHash, left, uploaded, downloaded) {
+        super();
+        if (!(this instanceof UdpTracker))
             return new UdpTracker(type, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
-        var self = _this;
+        const self = this;
         self.USER = "-EM0012-" + guidvC();
         self.CASE = type;
         self.HOST = trackerHost;
@@ -40,7 +34,7 @@ var UdpTracker = (function (_super) {
                     break;
                 case "stop":
                     self.EVENT = 3;
-                    setTimeout(function () {
+                    setTimeout(() => {
                         self.server.close();
                     }, 300);
                     break;
@@ -62,34 +56,33 @@ var UdpTracker = (function (_super) {
         });
         self.server.on("message", function (msg, rinfo) { self.message(msg, rinfo); });
         self.server.bind(self.MY_PORT);
-        return _this;
     }
-    UdpTracker.prototype.sendPacket = function (buf) {
-        var self = this;
-        self.server.send(buf, 0, buf.length, self.PORT, self.HOST, function (err) {
+    sendPacket(buf) {
+        const self = this;
+        self.server.send(buf, 0, buf.length, self.PORT, self.HOST, (err) => {
             if (err) {
                 self.emit("error", err);
             }
         });
-    };
-    UdpTracker.prototype.startConnection = function () {
-        var self = this;
+    }
+    startConnection() {
+        const self = this;
         self.TRANSACTION_ID = ~~((Math.random() * 100000) + 1);
-        var buf = new buffer_1.Buffer(16);
+        let buf = new buffer_1.Buffer(16);
         buf.fill(0);
         buf.writeUInt32BE(connectionIdHigh, 0);
         buf.writeUInt32BE(connectionIdLow, 4);
         buf.writeUInt32BE(ACTION_CONNECT, 8);
         buf.writeUInt32BE(self.TRANSACTION_ID, 12);
         self.sendPacket(buf);
-    };
-    UdpTracker.prototype.scrape = function () {
-        var self = this;
+    }
+    scrape() {
+        const self = this;
         if (!self.TRANSACTION_ID) {
             self.startConnection();
         }
         else {
-            var buf = new buffer_1.Buffer(36);
+            let buf = new buffer_1.Buffer(36);
             buf.fill(0);
             buf.writeUInt32BE(connectionIdHigh, 0);
             buf.writeUInt32BE(connectionIdLow, 4);
@@ -98,14 +91,14 @@ var UdpTracker = (function (_super) {
             buf.write(self.HASH, 16, 20, "hex");
             self.sendPacket(buf);
         }
-    };
-    UdpTracker.prototype.announce = function () {
-        var self = this;
+    }
+    announce() {
+        const self = this;
         if (!self.TRANSACTION_ID) {
             self.startConnection();
         }
         else {
-            var buf = new buffer_1.Buffer(98);
+            let buf = new buffer_1.Buffer(98);
             buf.fill(0);
             buf.writeUInt32BE(connectionIdHigh, 0);
             buf.writeUInt32BE(connectionIdLow, 4);
@@ -126,11 +119,11 @@ var UdpTracker = (function (_super) {
             connectionIdHigh = 0x417,
                 connectionIdLow = 0x27101980;
         }
-    };
-    UdpTracker.prototype.message = function (msg, rinfo) {
-        var self = this;
-        var buf = new buffer_1.Buffer(msg);
-        var action = buf.readUInt32BE(0);
+    }
+    message(msg, rinfo) {
+        const self = this;
+        let buf = new buffer_1.Buffer(msg);
+        let action = buf.readUInt32BE(0);
         self.TRANSACTION_ID = buf.readUInt32BE(4);
         if (action === ACTION_CONNECT) {
             connectionIdHigh = buf.readUInt32BE(8);
@@ -138,39 +131,35 @@ var UdpTracker = (function (_super) {
             self.announce();
         }
         else if (action === ACTION_SCRAPE) {
-            var seeders = buf.readUInt32BE(8), completed = buf.readUInt32BE(12), leechers = buf.readUInt32BE(16);
+            let seeders = buf.readUInt32BE(8), completed = buf.readUInt32BE(12), leechers = buf.readUInt32BE(16);
             self.emit("scrape", seeders, completed, leechers);
             self.announce();
         }
         else if (action === ACTION_ANNOUNCE) {
-            var interval = buf.readUInt32BE(8), leechers = buf.readUInt32BE(12), seeders = buf.readUInt32BE(16), bufLength = buf.length, addresses = [];
-            for (var i = 20; i < bufLength; i += 6) {
-                var address = buf.readUInt8(i) + "." + buf.readUInt8(i + 1) + "." + buf.readUInt8(i + 2) + "." + buf.readUInt8(i + 3) + ":" + buf.readUInt16BE(i + 4);
+            let interval = buf.readUInt32BE(8), leechers = buf.readUInt32BE(12), seeders = buf.readUInt32BE(16), bufLength = buf.length, addresses = [];
+            for (let i = 20; i < bufLength; i += 6) {
+                let address = `${buf.readUInt8(i)}.${buf.readUInt8(i + 1)}.${buf.readUInt8(i + 2)}.${buf.readUInt8(i + 3)}:${buf.readUInt16BE(i + 4)}`;
                 addresses.push(address);
             }
             self.emit("announce", interval, leechers, seeders, addresses);
             self.server.close();
         }
         else if (action === ACTION_ERROR) {
-            var errorResponce = buf.slice(8).toString();
+            let errorResponce = buf.slice(8).toString();
             self.emit("error", errorResponce);
             self.server.close();
         }
-    };
-    return UdpTracker;
-}(events_1.EventEmitter));
-exports.UdpTracker = UdpTracker;
-var WssTracker = (function (_super) {
-    __extends(WssTracker, _super);
-    function WssTracker() {
-        var _this = _super.call(this) || this;
-        if (!(_this instanceof WssTracker))
-            return new WssTracker();
-        var self = _this;
-        return _this;
     }
-    return WssTracker;
-}(events_1.EventEmitter));
+}
+exports.UdpTracker = UdpTracker;
+class WssTracker extends events_1.EventEmitter {
+    constructor() {
+        super();
+        if (!(this instanceof WssTracker))
+            return new WssTracker();
+        const self = this;
+    }
+}
 exports.WssTracker = WssTracker;
 function guidvC() {
     return Math.floor((1 + Math.random()) * 0x1000000000000)

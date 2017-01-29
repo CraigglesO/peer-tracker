@@ -2,7 +2,7 @@
 import { createServer }     from "http";
 import * as url             from "url";
 import * as WebSocketServer from "ws";
-import express              from "express";
+import * as express         from "express";
 import * as dgram           from "dgram";
 import readUInt64BE         from "readUInt64BE";
 import { Buffer }           from "buffer";
@@ -13,7 +13,6 @@ debug("PeerTracker:Server")
 
 const GeoIpNativeLite = require("geoip-native-lite");
 const bencode = require("bencode")
-// TODO: JSON
 
 // Load in GeoData
 GeoIpNativeLite.loadDataSync();
@@ -65,7 +64,6 @@ client.on("ready", function() {
   console.log("Redis is up and running.");
 });
 
-
 class Server {
   server: any
   wss:    WebSocketServer
@@ -74,11 +72,12 @@ class Server {
   constructor() {
     const self = this;
     self.server                = createServer();
-    self.wss                   = new WebSocketServer({ server: self.server });
+    self.wss                   = new WebSocketServer.Server({ server: self.server });
     self.udp4                  = dgram.createSocket({ type: "udp4", reuseAddr: true });
     self.app                   = express();
-
     // Express
+
+    console.log('HERE!!!');
 
     self.app.get("/", function (req, res) {
       res.status(202).send("Welcome to the Empire.");
@@ -114,7 +113,7 @@ class Server {
 
     self.server.on("request", self.app.bind(self));
 
-    self.server.listen(80, function () { console.log("HTTP Express Listening on " + self.server.address().port + "Websocket Listening on " + self.server.address().port + ".") });
+    self.server.listen(80, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + ".") });
 
 
     // WebSocket:

@@ -1,6 +1,4 @@
-import Server = require("./Server");
-import Client = require("./Client");
-import WsClient = require("./WsClient");
+import Server from "./Server";
+import * as Client from "./Client";
 
-export default Server;
-export { Client, WsClient, Server };
+export { Client, Server };

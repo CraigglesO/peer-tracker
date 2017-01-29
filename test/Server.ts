@@ -1,7 +1,7 @@
-import peerTracker from "../peer-tracker";
+import { Server } from "../peer-tracker";
 import * as test from "blue-tape";
 
-test("Prep blue-tape", (t) => {
+test("Server test", (t) => {
   t.plan(1);
 
   t.true( true );

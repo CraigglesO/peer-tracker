@@ -1,18 +1,18 @@
 "use strict";
-var http_1 = require("http");
-var WebSocketServer = require("ws");
-var express_1 = require("express");
-var dgram = require("dgram");
-var readUInt64BE_1 = require("readUInt64BE");
-var buffer_1 = require("buffer");
-var redis = require("redis");
-var _ = require("lodash");
-var debug = require("debug");
+const http_1 = require("http");
+const WebSocketServer = require("ws");
+const express = require("express");
+const dgram = require("dgram");
+const readUInt64BE_1 = require("readUInt64BE");
+const buffer_1 = require("buffer");
+const redis = require("redis");
+const _ = require("lodash");
+const debug = require("debug");
 debug("PeerTracker:Server");
-var GeoIpNativeLite = require("geoip-native-lite");
-var bencode = require("bencode");
+const GeoIpNativeLite = require("geoip-native-lite");
+const bencode = require("bencode");
 GeoIpNativeLite.loadDataSync();
-var stats = {
+let stats = {
     seedCount: 0,
     leechCount: 0,
     torrentCount: 0,
@@ -21,23 +21,24 @@ var stats = {
     successfulDown: 0,
     countries: {}
 };
-var serverPort = 1337, ACTION_CONNECT = 0, ACTION_ANNOUNCE = 1, ACTION_SCRAPE = 2, ACTION_ERROR = 3, INTERVAL = 1801, startConnectionIdHigh = 0x417, startConnectionIdLow = 0x27101980;
-var MAX_PEER_SIZE = 1500;
-var FOUR_AND_FIFTEEN_DAYS = 415 * 24 * 60 * 60;
-var client = redis.createClient();
+const serverPort = 1337, ACTION_CONNECT = 0, ACTION_ANNOUNCE = 1, ACTION_SCRAPE = 2, ACTION_ERROR = 3, INTERVAL = 1801, startConnectionIdHigh = 0x417, startConnectionIdLow = 0x27101980;
+const MAX_PEER_SIZE = 1500;
+const FOUR_AND_FIFTEEN_DAYS = 415 * 24 * 60 * 60;
+const client = redis.createClient();
 client.on("error", function (err) {
     console.log("Redis error: " + err);
 });
 client.on("ready", function () {
     console.log("Redis is up and running.");
 });
-var Server = (function () {
-    function Server() {
-        var self = this;
+class Server {
+    constructor() {
+        const self = this;
         self.server = http_1.createServer();
-        self.wss = new WebSocketServer({ server: self.server });
+        self.wss = new WebSocketServer.Server({ server: self.server });
         self.udp4 = dgram.createSocket({ type: "udp4", reuseAddr: true });
-        self.app = express_1.default();
+        self.app = express();
+        console.log('HERE!!!');
         self.app.get("/", function (req, res) {
             res.status(202).send("Welcome to the Empire.");
         });
@@ -45,10 +46,17 @@ var Server = (function () {
             res.status(202).send(stats);
         });
         self.app.get("/stat", function (req, res) {
-            var parsedResponce = "<h1>" + stats.torrentCount + " Torrents {" + stats.activeTcount + " active}</h1>\n\n                            <h2>Successful Downloads: " + stats.successfulDown + "</h2>\n\n                            <h2>Number of Scrapes to this tracker: " + stats.scrapeCount + "</h2>\n\n                            <h3>Connected Peers: " + (stats.seedCount + stats.leechCount) + "</h3>\n\n                            <h3><ul>Seeders: " + stats.seedCount + "</ul></h3>\n\n                            <h3><ul>Leechers: " + stats.leechCount + "</ul></h3>\n\n                            <h3>Countries that have connected: <h3>\n\n                            <ul>";
-            var countries;
+            let parsedResponce = `<h1>${stats.torrentCount} Torrents {${stats.activeTcount} active}</h1>\n
+                            <h2>Successful Downloads: ${stats.successfulDown}</h2>\n
+                            <h2>Number of Scrapes to this tracker: ${stats.scrapeCount}</h2>\n
+                            <h3>Connected Peers: ${stats.seedCount + stats.leechCount}</h3>\n
+                            <h3><ul>Seeders: ${stats.seedCount}</ul></h3>\n
+                            <h3><ul>Leechers: ${stats.leechCount}</ul></h3>\n
+                            <h3>Countries that have connected: <h3>\n
+                            <ul>`;
+            let countries;
             for (countries in stats.countries)
-                parsedResponce += "<li>" + stats.countries[countries] + "</li>\n";
+                parsedResponce += `<li>${stats.countries[countries]}</li>\n`;
             parsedResponce += "</ul>";
             res.status(202).send(parsedResponce);
         });
@@ -56,19 +64,19 @@ var Server = (function () {
             res.status(404).send("<h1>404 Not Found</h1>");
         });
         self.server.on("request", self.app.bind(self));
-        self.server.listen(80, function () { console.log("HTTP Express Listening on " + self.server.address().port + "Websocket Listening on " + self.server.address().port + "."); });
+        self.server.listen(80, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + "."); });
         self.wss.on("connection", function connection(ws) {
             console.log("incoming WS...");
-            var peerAddress = ws._socket.remoteAddress;
-            var port = ws._socket.remotePort;
+            let peerAddress = ws._socket.remoteAddress;
+            let port = ws._socket.remotePort;
             ws.on("message", function incoming(msg) {
                 console.log(msg);
             });
         });
         self.udp4.on("message", function (msg, rinfo) {
             console.log("incoming...");
-            handleMessage(msg, rinfo.address, rinfo.port, function (reply) {
-                self.udp4.send(reply, 0, reply.length, rinfo.port, rinfo.address, function (err) {
+            handleMessage(msg, rinfo.address, rinfo.port, (reply) => {
+                self.udp4.send(reply, 0, reply.length, rinfo.port, rinfo.address, (err) => {
                     if (err) {
                         console.log("udp4 error: ", err);
                     }
@@ -78,37 +86,37 @@ var Server = (function () {
             });
         });
         self.udp4.on("error", function (err) { console.log("error", err); });
-        self.udp4.on("listening", function () { console.log("UDP-4 Bound to 1337."); });
+        self.udp4.on("listening", () => { console.log("UDP-4 Bound to 1337."); });
         self.udp4.bind(serverPort);
-        self.updateStatus(function (info) {
+        self.updateStatus((info) => {
             stats = info;
         });
-        setInterval(function () {
+        setInterval(() => {
             console.log(Date.now());
-            self.updateStatus(function (info) {
+            self.updateStatus((info) => {
                 stats = info;
             });
         }, 30 * 60 * 1000);
     }
-    Server.prototype.updateStatus = function (cb) {
-        var self = this;
-        var NOW = Date.now(), seedCount = 0, leechCount = 0, torrentCount = 0, activeTcount = 0, scrapeCount = 0, successfulDown = 0, countries = {};
-        client.get("hashes", function (err, reply) {
+    updateStatus(cb) {
+        const self = this;
+        let NOW = Date.now(), seedCount = 0, leechCount = 0, torrentCount = 0, activeTcount = 0, scrapeCount = 0, successfulDown = 0, countries = {};
+        client.get("hashes", (err, reply) => {
             if (!reply)
                 return;
-            var hashList = reply.split(",");
+            let hashList = reply.split(",");
             torrentCount = hashList.length;
-            hashList.forEach(function (hash, i) {
-                client.mget([hash + ":seeders", hash + ":leechers", hash + ":time", hash + ":completed"], function (err, rply) {
+            hashList.forEach((hash, i) => {
+                client.mget([hash + ":seeders", hash + ":leechers", hash + ":time", hash + ":completed"], (err, rply) => {
                     if (err) {
                         return;
                     }
                     if (rply[0]) {
                         rply[0] = rply[0].split(",");
                         seedCount += rply[0].length;
-                        rply[0].forEach(function (addr) {
-                            var ip = addr.split(":")[0];
-                            var country = GeoIpNativeLite.lookup(ip);
+                        rply[0].forEach((addr) => {
+                            let ip = addr.split(":")[0];
+                            let country = GeoIpNativeLite.lookup(ip);
                             if (country)
                                 countries[country] = country.toUpperCase();
                         });
@@ -116,9 +124,9 @@ var Server = (function () {
                     if (rply[1]) {
                         rply[1] = rply[1].split(",");
                         seedCount += rply[1].length;
-                        rply[1].forEach(function (addr) {
-                            var ip = addr.split(":")[0];
-                            var country = GeoIpNativeLite.lookup(ip);
+                        rply[1].forEach((addr) => {
+                            let ip = addr.split(":")[0];
+                            let country = GeoIpNativeLite.lookup(ip);
                             if (country)
                                 countries[country] = country.toUpperCase();
                         });
@@ -131,12 +139,12 @@ var Server = (function () {
                         successfulDown += Number(rply[3]);
                     }
                     if (i === (torrentCount - 1)) {
-                        cb({ seedCount: seedCount, leechCount: leechCount, torrentCount: torrentCount, activeTcount: activeTcount, scrapeCount: scrapeCount, successfulDown: successfulDown, countries: countries });
+                        cb({ seedCount, leechCount, torrentCount, activeTcount, scrapeCount, successfulDown, countries });
                     }
                 });
             });
         });
-        client.get("scrape", function (err, rply) {
+        client.get("scrape", (err, rply) => {
             if (err) {
                 return;
             }
@@ -144,12 +152,11 @@ var Server = (function () {
                 return;
             stats.scrapeCount = rply;
         });
-    };
-    return Server;
-}());
+    }
+}
 function handleMessage(msg, peerAddress, port, cb) {
     console.log("connection occured... address: " + peerAddress + " and port: " + port);
-    var buf = new buffer_1.Buffer(msg), bufLength = buf.length, transaction_id = 0, action = null, connectionIdHigh = null, connectionIdLow = null, hash = null, responce = null, PEER_ID = null, PEER_ADDRESS = null, PEER_KEY = null, NUM_WANT = null, peerPort = port, peers = null;
+    let buf = new buffer_1.Buffer(msg), bufLength = buf.length, transaction_id = 0, action = null, connectionIdHigh = null, connectionIdLow = null, hash = null, responce = null, PEER_ID = null, PEER_ADDRESS = null, PEER_KEY = null, NUM_WANT = null, peerPort = port, peers = null;
     if (bufLength < 16) {
         ERROR();
     }
@@ -171,8 +178,8 @@ function handleMessage(msg, peerAddress, port, cb) {
                 ERROR();
                 break;
             }
-            var newConnectionIDHigh = ~~((Math.random() * 100000) + 1);
-            var newConnectionIDLow = ~~((Math.random() * 100000) + 1);
+            let newConnectionIDHigh = ~~((Math.random() * 100000) + 1);
+            let newConnectionIDLow = ~~((Math.random() * 100000) + 1);
             client.setex(peerAddress + ":" + newConnectionIDHigh, 60, 1);
             client.setex(peerAddress + ":" + newConnectionIDLow, 60, 1);
             client.setex(peerAddress + ":" + startConnectionIdLow, 60, 1);
@@ -197,13 +204,13 @@ function handleMessage(msg, peerAddress, port, cb) {
             hash = hash.toString("hex");
             PEER_ID = buf.slice(36, 56);
             PEER_ID = PEER_ID.toString();
-            var DOWNLOADED = readUInt64BE_1.default(buf, 56), LEFT_1 = readUInt64BE_1.default(buf, 64), UPLOADED = readUInt64BE_1.default(buf, 72), EVENT_1 = buf.readUInt32BE(80);
+            let DOWNLOADED = readUInt64BE_1.default(buf, 56), LEFT = readUInt64BE_1.default(buf, 64), UPLOADED = readUInt64BE_1.default(buf, 72), EVENT = buf.readUInt32BE(80);
             console.log("hash: ", hash);
             console.log("peer id: ", PEER_ID);
             console.log("A-downloaded: ", DOWNLOADED);
-            console.log("A-LEFT: ", LEFT_1);
+            console.log("A-LEFT: ", LEFT);
             console.log("A-uploaded: ", UPLOADED);
-            console.log("A-EVENT: ", EVENT_1);
+            console.log("A-EVENT: ", EVENT);
             console.log("A-peerPort: ", port);
             if (bufLength > 96) {
                 console.log("96 bits long!");
@@ -216,38 +223,38 @@ function handleMessage(msg, peerAddress, port, cb) {
                 console.log("num want: ", NUM_WANT);
                 console.log("peerPort-after: ", peerPort);
             }
-            client.mget([peerAddress + ":" + connectionIdHigh, peerAddress + ":" + connectionIdLow], function (err, reply) {
+            client.mget([peerAddress + ":" + connectionIdHigh, peerAddress + ":" + connectionIdLow], (err, reply) => {
                 if (!reply[0] || !reply[1] || err) {
                     console.log("damn.. stuck here...");
                     ERROR();
                     return;
                 }
                 console.log("peer+connection WORKED!");
-                if (EVENT_1 === 1) {
+                if (EVENT === 1) {
                     removePeer(peerAddress + ":" + peerPort, hash + ":leechers");
                     addPeer(peerAddress + ":" + peerPort, hash + ":seeders");
                     client.incr(hash + ":completed");
                     addHash(hash);
                 }
-                else if (EVENT_1 === 2) {
+                else if (EVENT === 2) {
                     console.log("EVENT 2 CALLED");
-                    if (LEFT_1 > 0)
+                    if (LEFT > 0)
                         addPeer(peerAddress + ":" + peerPort, hash + ":leechers");
                     else
                         addPeer(peerAddress + ":" + peerPort, hash + ":seeders");
                 }
-                else if (EVENT_1 === 3) {
+                else if (EVENT === 3) {
                     removePeer(peerAddress + ":" + peerPort, hash + ":leechers");
                     removePeer(peerAddress + ":" + peerPort, hash + ":seeders");
                     return;
                 }
-                client.mget([hash + ":seeders", hash + ":leechers"], function (err, rply) {
+                client.mget([hash + ":seeders", hash + ":leechers"], (err, rply) => {
                     if (err) {
                         console.log("error 7");
                         ERROR();
                         return;
                     }
-                    var addresses = addrToBuffer(rply[0], rply[1], LEFT_1);
+                    let addresses = addrToBuffer(rply[0], rply[1], LEFT);
                     responce = new buffer_1.Buffer(20);
                     responce.fill(0);
                     responce.writeUInt32BE(ACTION_ANNOUNCE, 0);
@@ -266,13 +273,13 @@ function handleMessage(msg, peerAddress, port, cb) {
             client.incr("scrape");
             hash = buf.slice(16, 36);
             hash = hash.toString("hex");
-            client.mget([hash + ":seeders", hash + ":leechers", hash + ":completed"], function (err, rply) {
+            client.mget([hash + ":seeders", hash + ":leechers", hash + ":completed"], (err, rply) => {
                 if (err) {
                     ERROR();
                     console.log("error1");
                     return;
                 }
-                var addresses = addrToBuffer(rply[0], rply[1], 1);
+                let addresses = addrToBuffer(rply[0], rply[1], 1);
                 responce = new buffer_1.Buffer(20);
                 responce.fill(0);
                 responce.writeUInt32BE(ACTION_SCRAPE, 0);
@@ -295,7 +302,7 @@ function handleMessage(msg, peerAddress, port, cb) {
         cb(responce);
     }
     function addPeer(peer, where) {
-        client.get(where, function (err, reply) {
+        client.get(where, (err, reply) => {
             if (err) {
                 console.log("error here2");
                 return;
@@ -317,7 +324,7 @@ function handleMessage(msg, peerAddress, port, cb) {
         });
     }
     function removePeer(peer, where) {
-        client.get(where, function (err, reply) {
+        client.get(where, (err, reply) => {
             if (err) {
                 console.log("ERROR 3 here..");
                 return;
@@ -328,7 +335,7 @@ function handleMessage(msg, peerAddress, port, cb) {
                 else {
                     console.log("peer to remove: ", peer);
                     reply = reply.split(",");
-                    var index = reply.indexOf(peer);
+                    let index = reply.indexOf(peer);
                     if (index > -1) {
                         reply.splice(index, 1);
                     }
@@ -339,17 +346,17 @@ function handleMessage(msg, peerAddress, port, cb) {
         });
     }
     function addrToBuffer(seeders, leechers, LEFT) {
-        var leecherCount = 0, seederCount = 0, peerBuffer = null, peerBufferSize = 0;
+        let leecherCount = 0, seederCount = 0, peerBuffer = null, peerBufferSize = 0;
         if (LEFT === 0 || !seeders || seeders === "")
             seeders = new buffer_1.Buffer(0);
         else {
             seeders = seeders.split(",");
             seederCount = seeders.length;
-            seeders = seeders.map(function (addressPort) {
-                var addr = addressPort.split(":")[0];
-                var port = addressPort.split(":")[1];
+            seeders = seeders.map((addressPort) => {
+                let addr = addressPort.split(":")[0];
+                let port = addressPort.split(":")[1];
                 addr = addr.split(".");
-                var b = new buffer_1.Buffer(6);
+                let b = new buffer_1.Buffer(6);
                 b.fill(0);
                 b.writeUInt8(addr[0], 0);
                 b.writeUInt8(addr[1], 1);
@@ -367,11 +374,11 @@ function handleMessage(msg, peerAddress, port, cb) {
         else {
             leechers = leechers.split(",");
             leecherCount = leechers.length;
-            leechers = leechers.map(function (addressPort) {
-                var addr = addressPort.split(":")[0];
-                var port = addressPort.split(":")[1];
+            leechers = leechers.map((addressPort) => {
+                let addr = addressPort.split(":")[0];
+                let port = addressPort.split(":")[1];
                 addr = addr.split(".");
-                var b = new buffer_1.Buffer(6);
+                let b = new buffer_1.Buffer(6);
                 b.fill(0);
                 b.writeUInt8(addr[0], 0);
                 b.writeUInt8(addr[1], 1);
@@ -387,7 +394,7 @@ function handleMessage(msg, peerAddress, port, cb) {
         return [leecherCount, seederCount, peerBuffer];
     }
     function addHash(hash) {
-        client.get("hashes", function (err, reply) {
+        client.get("hashes", (err, reply) => {
             if (err) {
                 console.log("error4");
                 return;
@@ -404,7 +411,7 @@ function handleMessage(msg, peerAddress, port, cb) {
         });
     }
     function getHashes() {
-        var r = client.get("hashes", function (err, reply) {
+        let r = client.get("hashes", (err, reply) => {
             if (err) {
                 console.log("error5");
                 return null;
