@@ -67,6 +67,8 @@ class Client extends EventEmitter {
     self.KEY        = 0;
     self.IP_ADDRESS = 0; // Default unless behind a proxy
 
+    self.SCRAPE     = false;
+
     // Setup server
 
     if (self.TYPE === "udp") {
@@ -107,8 +109,9 @@ class Client extends EventEmitter {
         self.EVENT = 0;
         break;
       case "scrape":
+        self.SCRAPE = true;
+        self.EVENT  = 2;
         self.scrape();
-        self.EVENT = 2;
         return;
       default:
         self.emit("error", "Bad call signature.");
@@ -154,6 +157,7 @@ class Client extends EventEmitter {
         self.startConnection();
     } else {
 
+      console.log('scraping...');
       let buf = new Buffer(36);
       buf.fill(0);
 
@@ -222,7 +226,10 @@ class Client extends EventEmitter {
       connectionIdLow  = buf.readUInt32BE(12);    // 0   64-bit integer  connection_id
 
       // Announce
-      self.announce();
+      if (self.SCRAPE)
+        self.scrape();
+      else
+        self.announce();
 
     } else if (action === ACTION_SCRAPE) {
 

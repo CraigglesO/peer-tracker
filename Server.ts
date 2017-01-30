@@ -280,7 +280,7 @@ function handleMessage(msg, peerAddress, port, cb) {
   console.log("connectionIdLow: ", connectionIdLow);
   console.log("action: ", action);
   console.log("transaction_id: ", transaction_id);
-
+  console.log('ACTION: ', action);
   switch (action) {
     case ACTION_CONNECT:
       console.log("connect request: ");
@@ -319,7 +319,7 @@ function handleMessage(msg, peerAddress, port, cb) {
         ERROR();
         break;
       }
-      // FOR NOW WE JUST NEED THIS:
+      // Minimal requirements:
       hash             = buf.slice(16, 36);
       hash             = hash.toString("hex");
       PEER_ID          = buf.slice(36, 56);  // -WD0017-I0mH4sMSAPOJ && -LT1000-9BjtQhMtTtTc
