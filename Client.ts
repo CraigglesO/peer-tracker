@@ -82,7 +82,7 @@ class Client extends EventEmitter {
       self.server.on("open", function () {
         self.prepAnnounce();
       });
-      self.server.on('message', function(msg, flags) { self.message(msg, flags); });
+      self.server.on("message", function(msg, flags) { self.message(msg, flags); });
     }
 
   }

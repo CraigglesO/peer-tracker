@@ -135,7 +135,7 @@ class Server {
 
       ws.on("message", function incoming(msg) {
         handleMessage(msg, peerAddress, port, (reply) => {
-          console.log('sending reply');
+          console.log("sending reply");
           ws.send(reply);
         });
       });

@@ -29,5 +29,5 @@ import Server = require('~peer-tracker/Server');
 import Client = require('~peer-tracker/Client');
 
 export { Client, Server }
-export default Server;
+export default Client;
 }
