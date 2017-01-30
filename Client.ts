@@ -16,11 +16,11 @@ const ACTION_CONNECT   = 0,
 let   connectionIdHigh = 0x417,
       connectionIdLow  = 0x27101980;
 
-function udp(announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string, left: number, uploaded: number, downloaded: number) {
+function udp(announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string | Array<string>, left: number, uploaded: number, downloaded: number) {
   return new Client("udp", announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
 }
 
-function ws(announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string, left: number, uploaded: number, downloaded: number) {
+function ws(announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string | Array<string>, left: number, uploaded: number, downloaded: number) {
   return new Client("ws", announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
 }
 
@@ -29,7 +29,7 @@ class Client extends EventEmitter {
   USER:           string;
   CASE:           string;
   HOST:           string;
-  HASH:           string;
+  HASH:           string | Array<string>;
   PORT:           number;
   MY_PORT:        number;
   TRANSACTION_ID: number;
@@ -45,7 +45,7 @@ class Client extends EventEmitter {
   TIMEOUT_N:      number;
   server:         any;
 
-  constructor(type: string, announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string, left: number, uploaded: number, downloaded: number) {
+  constructor(type: string, announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string | Array<string>, left: number, uploaded: number, downloaded: number) {
     super();
     if (!(this instanceof Client))
       return new Client(type, announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
@@ -55,7 +55,7 @@ class Client extends EventEmitter {
     self.USER = "-EM0012-" + guidvC();
     self.CASE = announcement;
     self.HOST = trackerHost;
-    self.HASH = infoHash;
+    self.HASH = ( Array.isArray(infoHash) ) ? infoHash.join("") : infoHash;
     self.PORT = port;
     self.MY_PORT = myPort;
     self.TRANSACTION_ID = null; // This will be our method of keeping track of new connections...
@@ -157,15 +157,15 @@ class Client extends EventEmitter {
         self.startConnection();
     } else {
 
-      let buf = new Buffer(36);
+      let hashBuf = Buffer.from(self.HASH, "hex");
+      let buf = new Buffer(16);
       buf.fill(0);
 
       buf.writeUInt32BE(connectionIdHigh, 0);      // 0             64-bit integer  connection_id   0x41727101980
       buf.writeUInt32BE(connectionIdLow, 4);       // 0             64-bit integer  connection_id   0x41727101980
       buf.writeUInt32BE(ACTION_SCRAPE, 8);         // 8             32-bit integer  action          2 // scrape
       buf.writeUInt32BE(self.TRANSACTION_ID, 12);  // 12            32-bit integer  transaction_id
-      buf.write(self.HASH, 16, 20, "hex");         // 16 + 20 * n   20-byte string  info_hash
-
+      buf = Buffer.concat([buf, hashBuf]);         // 16 + 20 * n   20-byte string  info_hash
       // Send Packet
       self.sendPacket(buf);
     }
@@ -232,10 +232,12 @@ class Client extends EventEmitter {
 
     } else if (action === ACTION_SCRAPE) {
 
-      let seeders   = buf.readUInt32BE(8),   //  8    32-bit integer  interval
-          completed = buf.readUInt32BE(12),  //  12   32-bit integer  completed
-          leechers  = buf.readUInt32BE(16);  //  16   32-bit integer  leechers
-      self.emit("scrape", seeders, completed, leechers);
+      for (let i = 0; i < (buf.length - 8); i += 20) {
+        let seeders   = buf.readUInt32BE(8 + i),   //  8    32-bit integer  interval
+            completed = buf.readUInt32BE(12 + i),  //  12   32-bit integer  completed
+            leechers  = buf.readUInt32BE(16 + i);  //  16   32-bit integer  leechers
+        self.emit("scrape", seeders, completed, leechers);
+      }
       self.announce();
 
     } else if (action === ACTION_ANNOUNCE) {

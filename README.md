@@ -18,6 +18,8 @@
 <br />
 ### About
 
+**OFFICIALLY VERSION 1!**
+
 #### Example Use
 
 See a working example [HERE](http://tracker.empire-js.us/stat)
@@ -47,6 +49,7 @@ Paired with client software, this package is ready to go.
 #### Functionality
 
 * Scrape support
+* **NEW** Multi-Scrape support!!!!
 * WebSocket support
 * Multi-server support
 * Docker compatible
@@ -72,11 +75,6 @@ Yep, literally that simple.
 The server does take options, however:
 
 ``` javascript
-interface Options {
-  port:    number;
-  udpPort: number;
-  docker:  Boolean
-}
 
 let opts = {
   port:    80    // Default
@@ -89,9 +87,11 @@ new Server(opts);
 
   **Client**
   ``` javascript
+// Scrape one hash
 let client = Client.udp("scrape", "0.0.0.0", 1337, 6688, "0123456789012345678901234567890123456789", 0, 0, 0);
 // OR ws:
-let client = Client.ws("scrape", "0.0.0.0", 80, 6688, "0123456789012345678901234567890123456789", 0, 0, 0);
+// Scrape multiple hashes:
+let client = Client.ws("scrape", "0.0.0.0", 80, 6688, ["0123456789012345678901234567890123456789", "0123456789012345678901234567890123456789"], 0, 0, 0);
 
 
 client.on("announce", (interval, leechers, seeders, addresses) => {
@@ -115,8 +115,23 @@ client.on("error", (err) => {
 
 Client will auto-self-destruct upon completion.
 
+`SERVER`
+
+Server(opts);
+  * opts: Options
+
+``` javascript
+interface Options {
+  port:    number;
+  udpPort: number;
+  docker:  Boolean
+}
+```
+
+
 `UDP CLIENT:`
-udp(announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded)
+
+**udp(announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded)**
   * _announcement_ type: string
     * `scrape`
     * `complete`
@@ -133,7 +148,8 @@ udp(announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloade
   * _downloaded_: number
 
 `WS CLIENT:`
-ws(announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded)
+
+**ws(announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded)**
   * _announcement_ type: string
     * `scrape`
     * `complete`

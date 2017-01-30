@@ -29,7 +29,7 @@ let stats = {
   leechCount: 0,
   torrentCount: 0,
   activeTcount: 0,
-  scrapeCount: "",
+  scrapeCount: 0,
   successfulDown: 0,
   countries: {}
 };
@@ -39,7 +39,7 @@ interface Stats {
   leechCount: number;
   torrentCount: number;
   activeTcount: number;
-  scrapeCount: string;
+  scrapeCount: number;
   successfulDown: number;
   countries: Object;
 }
@@ -86,6 +86,9 @@ class Server {
     self.wss     = new WebSocketServer.Server({ server: self.server });
     self.udp4    = dgram.createSocket({ type: "udp4", reuseAddr: true });
     self.app     = express();
+
+    // PREP VISUAL AID:
+    console.log(``);
 
     // Redis
     if (opts.docker)
@@ -145,13 +148,11 @@ class Server {
 
     self.wss.on("connection", function connection(ws) {
       // let location = url.parse(ws.upgradeReq.url, true);
-      console.log("incoming WS...");
       let peerAddress = ws._socket.remoteAddress; // '74.125.224.194'
       let port = ws._socket.remotePort; // 41435
 
       ws.on("message", function incoming(msg) {
         handleMessage(msg, peerAddress, port, (reply) => {
-          console.log("sending reply");
           ws.send(reply);
         });
       });
@@ -162,11 +163,9 @@ class Server {
     // UDP:
 
     self.udp4.on("message", function (msg, rinfo) {
-      console.log("incoming...");
       handleMessage(msg, rinfo.address, rinfo.port, (reply) => {
         self.udp4.send(reply, 0, reply.length, rinfo.port, rinfo.address, (err) => {
           if (err) { console.log("udp4 error: ", err); };
-          console.log("sent to: ", rinfo.address, " port: ", rinfo.port);
         });
       });
     });
@@ -178,7 +177,7 @@ class Server {
       stats = info;
     });
     setInterval(() => {
-      console.log(Date.now());
+      console.log("STAT UPDATE, " + Date.now());
       self.updateStatus((info) => {
         stats = info;
       });
@@ -207,6 +206,14 @@ class Server {
         return;
       let hashList = reply.split(",");
       torrentCount = hashList.length;
+
+      client.get("scrape", (err, rply) => {
+        if (err) { return; }
+        if (!rply)
+          return;
+        scrapeCount = rply;
+      });
+
       hashList.forEach((hash, i) => {
         client.mget([hash + ":seeders", hash + ":leechers", hash + ":time", hash + ":completed"], (err, rply) => {
           if (err) { return; }
@@ -247,13 +254,6 @@ class Server {
       });
     });
 
-    client.get("scrape", (err, rply) => {
-      if (err) { return; }
-      if (!rply)
-        return;
-      stats.scrapeCount = rply;
-    });
-
   }
 
 }
@@ -263,7 +263,6 @@ class Server {
 // MESSAGE FUNCTIONS:
 
 function handleMessage(msg, peerAddress, port, cb) {
-  console.log("connection occured... address: " + peerAddress + " and port: " + port);
   // PACKET SIZES:
   // CONNECT: 16 - ANNOUNCE: 98 - SCRAPE: 16 OR (16 + 20 * n)
   let buf              = new Buffer(msg),
@@ -291,14 +290,8 @@ function handleMessage(msg, peerAddress, port, cb) {
     action           = buf.readUInt32BE(8),    // 8     32-bit integer  action           0 // connect 1 // announce 2 // scrape 3 // error
     transaction_id   = buf.readUInt32BE(12);   // 12    32-bit integer  transaction_id
   }
-  console.log("buffer: ", buf.toString("hex"));
-  console.log("connectionIdHigh: ", connectionIdHigh);
-  console.log("connectionIdLow: ", connectionIdLow);
-  console.log("action: ", action);
-  console.log("transaction_id: ", transaction_id);
   switch (action) {
     case ACTION_CONNECT:
-      console.log("connect request: ");
       // Check whether the transaction ID is equal to the one you chose.
       if (startConnectionIdLow !== connectionIdLow || startConnectionIdHigh !== connectionIdHigh) {
         ERROR();
@@ -321,13 +314,10 @@ function handleMessage(msg, peerAddress, port, cb) {
       responce.writeUInt32BE(transaction_id, 4);       // 4       32-bit integer  transaction_id
       responce.writeUInt32BE(newConnectionIDHigh, 8);  // 8       64-bit integer  connection_id
       responce.writeUInt32BE(newConnectionIDLow, 12);   // 8       64-bit integer  connection_id
-      console.log("send connection packet back...");
       cb(responce);
       break;
 
     case ACTION_ANNOUNCE:
-      console.log();
-      console.log("action request made..");
       // Checks to make sure the packet is worth analyzing:
       // 1. packet is atleast 40 bytes
       if (bufLength < 84) {
@@ -344,32 +334,15 @@ function handleMessage(msg, peerAddress, port, cb) {
           UPLOADED     = readUInt64BE(buf, 72),
           EVENT        = buf.readUInt32BE(80);
 
-      console.log("hash: ", hash);
-      console.log("peer id: ", PEER_ID);
-      console.log("A-downloaded: ", DOWNLOADED);
-      console.log("A-LEFT: ", LEFT);
-      console.log("A-uploaded: ", UPLOADED);
-      console.log("A-EVENT: ", EVENT);
-      console.log("A-peerPort: ", port);
       if (bufLength > 96) {
-        console.log("96 bits long!");
         PEER_ADDRESS = buf.readUInt16BE(84);
         PEER_KEY     = buf.readUInt16BE(88);
         NUM_WANT     = buf.readUInt16BE(92);
         peerPort     = buf.readUInt16BE(96);
-        console.log("peer address: ", PEER_ADDRESS);
-        console.log("peer key: ", PEER_KEY);
-        console.log("num want: ", NUM_WANT);
-        console.log("peerPort-after: ", peerPort);
       }
       // 2. check that Transaction ID and Connection ID match
       client.mget([peerAddress + ":" + connectionIdHigh, peerAddress + ":" + connectionIdLow], (err, reply) => {
-        if ( !reply[0] || !reply[1] || err ) {
-          console.log("damn.. stuck here...");
-          ERROR();
-          return;
-        }
-        console.log("peer+connection WORKED!");
+        if ( !reply[0] || !reply[1] || err ) { ERROR(); return; }
 
         // Check EVENT // 0: none; 1: completed; 2: started; 3: stopped
         // If 1, 2, or 3 do sets first.
@@ -381,7 +354,6 @@ function handleMessage(msg, peerAddress, port, cb) {
           client.incr(hash + ":completed");
           addHash(hash);
         } else if (EVENT === 2) {
-          console.log("EVENT 2 CALLED");
           // Add to array (leecher array if LEFT is > 0)
           if (LEFT > 0)
             addPeer(peerAddress + ":" + peerPort, hash + ":leechers");
@@ -395,7 +367,7 @@ function handleMessage(msg, peerAddress, port, cb) {
         }
 
         client.mget([hash + ":seeders", hash + ":leechers"], (err, rply) => {
-          if ( err ) { console.log("error 7"); ERROR(); return; }
+          if ( err ) { ERROR(); return; }
 
           // Convert all addresses to a proper hex buffer:
           // Addresses return: 0 - leechers; 1 - seeders; 2 - hexedUp address-port pairs; 3 - resulting buffersize
@@ -412,7 +384,6 @@ function handleMessage(msg, peerAddress, port, cb) {
           responce.writeUInt32BE(addresses[1], 16);            // 16          32-bit integer  seeders
           responce = Buffer.concat([responce, addresses[2]]);  // 20 + 6 * n  32-bit integer  IP address
                                                                // 24 + 6 * n  16-bit integer  TCP port
-          console.log("SEND PACKET BACK: ");
           cb(responce);
 
         });
@@ -421,32 +392,42 @@ function handleMessage(msg, peerAddress, port, cb) {
       break;
 
     case ACTION_SCRAPE:
-      console.log("SCRAPE CALLED...");
       // Check whether the transaction ID is equal to the one you chose.
       // 2. check that Transaction ID and Connection ID match
-      client.incr("scrape");
 
-      // FOR NOW WE JUST NEED THIS:
-      hash = buf.slice(16, 36);
-      hash = hash.toString("hex");
+      // addresses return: 0 - leechers; 1 - seeders; 2 - hexedUp address-port pairs; 3 - resulting buffersize
+      // Create a responce buffer:
+      let responces = new Buffer( 8 );
+      responces.fill(0);
+      responces.writeUInt32BE(ACTION_SCRAPE, 0);    // 0           32-bit integer  action          1 // announce
+      responces.writeUInt32BE(transaction_id, 4);   // 4           32-bit integer  transaction_id
+      let bufferSum = [];
+      // LOOP THROUGH REQUESTS
+      for (let i = 16; i < (buf.length - 16); i += 20) {
+        hash = buf.slice(i, i + 20);
+        hash = hash.toString("hex");
 
-      client.mget([hash + ":seeders", hash + ":leechers", hash + ":completed"], (err, rply) => {
-        if ( err ) { ERROR(); console.log("error1"); return; }
+        client.mget([hash + ":seeders", hash + ":leechers", hash + ":completed"], (err, rply) => {
+          if ( err ) { ERROR(); return; }
 
-        // convert all addresses to a proper hex buffer:
-        let addresses = addrToBuffer(rply[0], rply[1], 1);
-        // addresses return: 0 - leechers; 1 - seeders; 2 - hexedUp address-port pairs; 3 - resulting buffersize
-        // Create a responce buffer:
-        responce = new Buffer(20);
-        responce.fill(0);
+          // convert all addresses to a proper hex buffer:
+          let addresses = addrToBuffer(rply[0], rply[1], 1);
 
-        responce.writeUInt32BE(ACTION_SCRAPE, 0);    // 0           32-bit integer  action          1 // announce
-        responce.writeUInt32BE(transaction_id, 4);   // 4           32-bit integer  transaction_id
-        responce.writeUInt32BE(addresses[1], 8);     // 8 + 12 * n  32-bit integer  seeders
-        responce.writeUInt32BE(rply[2], 12);         // 12 + 12 * n 32-bit integer  completed
-        responce.writeUInt32BE(addresses[0], 16);    // 16 + 12 * n 32-bit integer  leechers
-        cb(responce);
-      });
+          let responce = new Buffer(20);
+          responce.fill(0);
+
+          responce.writeUInt32BE(addresses[1], 8);     // 8 + 12 * n  32-bit integer  seeders
+          responce.writeUInt32BE(rply[2], 12);         // 12 + 12 * n 32-bit integer  completed
+          responce.writeUInt32BE(addresses[0], 16);    // 16 + 12 * n 32-bit integer  leechers
+          bufferSum.push(responce);
+
+          if ( (i + 16) >= (buf.length - 16) ) {
+            let scrapes = Buffer.concat(bufferSum);
+            responces = Buffer.concat([responces, scrapes]);
+            cb(responces);
+          }
+        });
+      }
       break;
 
     default:
@@ -465,14 +446,13 @@ function handleMessage(msg, peerAddress, port, cb) {
 
   function addPeer(peer, where) {
     client.get(where, (err, reply) => {
-      if (err) { console.log("error here2"); return; }
+      if (err) { ERROR(); return; }
       else {
         if (!reply)
           reply = peer;
         else
           reply = peer + "," + reply;
 
-        console.log("peer to add: ", peer);
         reply = reply.split(",");
         reply = _.uniq(reply);
         // Keep the list under MAX_PEER_SIZE;
@@ -487,12 +467,11 @@ function handleMessage(msg, peerAddress, port, cb) {
 
   function removePeer(peer, where) {
     client.get(where, (err, reply) => {
-      if (err) { console.log("ERROR 3 here.."); return; }
+      if (err) { ERROR(); return; }
       else {
         if (!reply)
           return;
         else {
-          console.log("peer to remove: ", peer);
           reply = reply.split(",");
           let index = reply.indexOf(peer);
           if (index > -1) {
@@ -559,7 +538,6 @@ function handleMessage(msg, peerAddress, port, cb) {
     }
 
     peerBuffer = Buffer.concat([seeders, leechers]);
-    console.log("peerBuffer: ", peerBuffer);
     // Addresses return: 0 - leechers; 1 - seeders; 2 - hexedUp address-port pairs; 3 - resulting buffersize
     return [leecherCount, seederCount, peerBuffer];
   }
@@ -567,7 +545,7 @@ function handleMessage(msg, peerAddress, port, cb) {
   // Add a new hash to the swarm, ensure uniqeness
   function addHash(hash) {
     client.get("hashes", (err, reply: any) => {
-      if (err) { console.log("error4"); return; }
+      if (err) { ERROR(); return; }
       if (!reply)
         reply = hash;
       else
@@ -582,7 +560,7 @@ function handleMessage(msg, peerAddress, port, cb) {
 
   function getHashes() {
     let r = client.get("hashes", (err, reply: any) => {
-      if (err) { console.log("error5"); return null; }
+      if (err) { ERROR(); return null; }
       reply = reply.split(",");
       return reply;
     });

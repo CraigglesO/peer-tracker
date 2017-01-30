@@ -26,17 +26,18 @@ class Client extends events_1.EventEmitter {
         self.USER = "-EM0012-" + guidvC();
         self.CASE = announcement;
         self.HOST = trackerHost;
-        self.HASH = (Array.isArray(infoHash)) ? infoHash.join("") : infoHash;
+        self.HASH = (Array.isArray(infoHash)) ? infoHash.join('') : infoHash;
         self.PORT = port;
         self.MY_PORT = myPort;
-        self.TRANSACTION_ID = null;
+        self.TRANSACTION_ID = null; // This will be our method of keeping track of new connections...
         self.EVENT = 0;
         self.LEFT = left;
         self.UPLOADED = uploaded;
         self.DOWNLOADED = downloaded;
         self.KEY = 0;
-        self.IP_ADDRESS = 0;
+        self.IP_ADDRESS = 0; // Default unless behind a proxy
         self.SCRAPE = false;
+        // Setup server
         if (self.TYPE === "udp") {
             self.server = dgram.createSocket("udp4");
             self.server.on("listening", function () {
@@ -63,6 +64,7 @@ class Client extends events_1.EventEmitter {
             case "stop":
                 self.EVENT = 3;
                 setTimeout(() => {
+                    // Close the server
                     self.server.close();
                 }, 1500);
                 break;
@@ -98,13 +100,16 @@ class Client extends events_1.EventEmitter {
     }
     startConnection() {
         const self = this;
+        // Prepare for the next connection:
         self.TRANSACTION_ID = ~~((Math.random() * 100000) + 1);
+        // Prep a packet for delivery:
         let buf = new buffer_1.Buffer(16);
         buf.fill(0);
-        buf.writeUInt32BE(connectionIdHigh, 0);
-        buf.writeUInt32BE(connectionIdLow, 4);
-        buf.writeUInt32BE(ACTION_CONNECT, 8);
-        buf.writeUInt32BE(self.TRANSACTION_ID, 12);
+        buf.writeUInt32BE(connectionIdHigh, 0); // 0    64-bit integer  connection_id   0x41727101980
+        buf.writeUInt32BE(connectionIdLow, 4); // 0    64-bit integer  connection_id   0x41727101980
+        buf.writeUInt32BE(ACTION_CONNECT, 8); // 8    32-bit integer  action          0 // connect
+        buf.writeUInt32BE(self.TRANSACTION_ID, 12); // 12   32-bit integer  transaction_id
+        // Send packet
         self.sendPacket(buf);
     }
     scrape() {
@@ -116,36 +121,41 @@ class Client extends events_1.EventEmitter {
             let hashBuf = buffer_1.Buffer.from(self.HASH, "hex");
             let buf = new buffer_1.Buffer(16);
             buf.fill(0);
-            buf.writeUInt32BE(connectionIdHigh, 0);
-            buf.writeUInt32BE(connectionIdLow, 4);
-            buf.writeUInt32BE(ACTION_SCRAPE, 8);
-            buf.writeUInt32BE(self.TRANSACTION_ID, 12);
-            buf = buffer_1.Buffer.concat([buf, hashBuf]);
+            buf.writeUInt32BE(connectionIdHigh, 0); // 0             64-bit integer  connection_id   0x41727101980
+            buf.writeUInt32BE(connectionIdLow, 4); // 0             64-bit integer  connection_id   0x41727101980
+            buf.writeUInt32BE(ACTION_SCRAPE, 8); // 8             32-bit integer  action          2 // scrape
+            buf.writeUInt32BE(self.TRANSACTION_ID, 12); // 12            32-bit integer  transaction_id
+            buf = buffer_1.Buffer.concat([buf, hashBuf]); // 16 + 20 * n   20-byte string  info_hash
+            console.log(buf.toString('hex'));
+            // Send Packet
             self.sendPacket(buf);
         }
     }
     announce() {
+        // EVENT: 0: none; 1: completed; 2: started; 3: stopped
         const self = this;
         if (!self.TRANSACTION_ID) {
             self.startConnection();
         }
         else {
+            // Prepare announce packet for delivery
             let buf = new buffer_1.Buffer(98);
             buf.fill(0);
-            buf.writeUInt32BE(connectionIdHigh, 0);
-            buf.writeUInt32BE(connectionIdLow, 4);
-            buf.writeUInt32BE(ACTION_ANNOUNCE, 8);
-            buf.writeUInt32BE(self.TRANSACTION_ID, 12);
-            buf.write(self.HASH, 16, 20, "hex");
-            buf.write(self.USER, 36, 20);
-            writeUInt64BE(buf, self.DOWNLOADED, 56);
-            writeUInt64BE(buf, self.LEFT, 64);
-            writeUInt64BE(buf, self.UPLOADED, 72);
-            buf.writeUInt32BE(self.EVENT, 80);
-            buf.writeUInt32BE(self.IP_ADDRESS, 84);
-            buf.writeUInt32BE(self.KEY, 88);
-            buf.writeInt32BE((-1), 92);
-            buf.writeUInt16BE(self.MY_PORT, 96);
+            buf.writeUInt32BE(connectionIdHigh, 0); //   0    64-bit integer  connection_id
+            buf.writeUInt32BE(connectionIdLow, 4); //   0    64-bit integer  connection_id
+            buf.writeUInt32BE(ACTION_ANNOUNCE, 8); //   8    32-bit integer  action          1 // announce
+            buf.writeUInt32BE(self.TRANSACTION_ID, 12); //   12   32-bit integer  transaction_id
+            buf.write(self.HASH, 16, 20, "hex"); //   16   20-byte string  info_hash
+            buf.write(self.USER, 36, 20); //   36   20-byte string  peer_id
+            writeUInt64BE(buf, self.DOWNLOADED, 56); //   56   64-bit integer  downloaded
+            writeUInt64BE(buf, self.LEFT, 64); //   64   64-bit integer  left
+            writeUInt64BE(buf, self.UPLOADED, 72); //   72   64-bit integer  uploaded
+            buf.writeUInt32BE(self.EVENT, 80); //   80   32-bit integer  event           0 // 0: none; 1: completed; 2: started; 3: stopped
+            buf.writeUInt32BE(self.IP_ADDRESS, 84); //   84   32-bit integer  IP address      0 // default
+            buf.writeUInt32BE(self.KEY, 88); //   88   32-bit integer  key
+            buf.writeInt32BE((-1), 92); //   92   32-bit integer  num_want        -1 // default
+            buf.writeUInt16BE(self.MY_PORT, 96); //   96   16-bit integer  port
+            // Send Packet
             self.sendPacket(buf);
             self.TRANSACTION_ID = null;
             connectionIdHigh = 0x417,
@@ -159,11 +169,14 @@ class Client extends events_1.EventEmitter {
             buf = new buffer_1.Buffer(msg);
         else
             buf = msg;
-        let action = buf.readUInt32BE(0);
-        self.TRANSACTION_ID = buf.readUInt32BE(4);
+        let action = buf.readUInt32BE(0); // 0   32-bit integer  action   0 // connect 1 // announce 2 // scrape 3 // error
+        self.TRANSACTION_ID = buf.readUInt32BE(4); // 4   32-bit integer  transaction_id
         if (action === ACTION_CONNECT) {
-            connectionIdHigh = buf.readUInt32BE(8);
-            connectionIdLow = buf.readUInt32BE(12);
+            // Server will establish a new connection_id to talk on.
+            // This connection_id dies after 5-10 seconds.
+            connectionIdHigh = buf.readUInt32BE(8); // 0   64-bit integer  connection_id
+            connectionIdLow = buf.readUInt32BE(12); // 0   64-bit integer  connection_id
+            // Announce
             if (self.SCRAPE)
                 self.scrape();
             else
@@ -171,23 +184,32 @@ class Client extends events_1.EventEmitter {
         }
         else if (action === ACTION_SCRAPE) {
             for (let i = 0; i < (buf.length - 8); i += 20) {
-                let seeders = buf.readUInt32BE(8 + i), completed = buf.readUInt32BE(12 + i), leechers = buf.readUInt32BE(16 + i);
+                let seeders = buf.readUInt32BE(8 + i), //  8    32-bit integer  interval
+                completed = buf.readUInt32BE(12 + i), //  12   32-bit integer  completed
+                leechers = buf.readUInt32BE(16 + i); //  16   32-bit integer  leechers
                 self.emit("scrape", seeders, completed, leechers);
             }
             self.announce();
         }
         else if (action === ACTION_ANNOUNCE) {
-            let interval = buf.readUInt32BE(8), leechers = buf.readUInt32BE(12), seeders = buf.readUInt32BE(16), bufLength = buf.length, addresses = [];
+            let interval = buf.readUInt32BE(8), //  8           32-bit integer  interval
+            leechers = buf.readUInt32BE(12), //  12          32-bit integer  leechers
+            seeders = buf.readUInt32BE(16), //  16          32-bit integer  seeders
+            bufLength = buf.length, //  20 + 6 * n  32-bit integer  IP address
+            addresses = []; //  24 + 6 * n  16-bit integer  TCP port
             for (let i = 20; i < bufLength; i += 6) {
                 let address = `${buf.readUInt8(i)}.${buf.readUInt8(i + 1)}.${buf.readUInt8(i + 2)}.${buf.readUInt8(i + 3)}:${buf.readUInt16BE(i + 4)}`;
                 addresses.push(address);
             }
+            // Send up
             self.emit("announce", interval, leechers, seeders, addresses);
+            // Close the server
             self.server.close();
         }
         else if (action === ACTION_ERROR) {
             let errorResponce = buf.slice(8).toString();
             self.emit("error", errorResponce);
+            // Close the server
             self.server.close();
         }
     }
@@ -197,3 +219,4 @@ function guidvC() {
         .toString(16)
         .substring(1);
 }
+//# sourceMappingURL=/Users/connor/Desktop/2017/PeerTracker/node/ts-node/9306d8023029a899f149722003eaf06449924f94/9474b68922a45670fd146d63ba098934e73f0ed9.js.map
