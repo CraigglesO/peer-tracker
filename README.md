@@ -34,23 +34,88 @@ Paired with client software, this package is ready to go.
 
 ## Install
 
-```
+``` javascript
 npm install peer-tracker
 
 ```
 
 ## Usage
-```
-EXAMPLE_USAGE_GOES_HERE
 
+  **Server**
+``` javascript
+new Server();
 ```
 
+Yep, literally that simple.
+(Be sure to have a Redis instance running)
+
+  **Client**
+  ``` javascript
+let client = Client.udp("scrape", "0.0.0.0", 1337, 6688, "0123456789012345678901234567890123456789", 0, 0, 0);
+// OR ws:
+let client = Client.ws("scrape", "0.0.0.0", 80, 6688, "0123456789012345678901234567890123456789", 0, 0, 0);
+
+
+client.on("announce", (interval, leechers, seeders, addresses) => {
+  console.log("interval:", interval);
+  console.log("leechers:", leechers);
+  console.log("seeders:", seeders);
+  console.log("addresses:", addresses);
+});
+
+client.on("scrape", (seeders, completed, leechers) => {
+  console.log("seeders", seeders);
+  console.log("completed", completed);
+  console.log("leechers", leechers);
+});
+
+client.on("error", (err) => {
+  console.log("error:", err);
+})
+
+  ```
+
+Client will auto-self-destruct upon completion.
+
+`UDP CLIENT:`
+udp(announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded)
+  * _announcement_ type: string
+    * `scrape`
+    * `complete`
+    * `start`
+    * `stop`
+    * `update`
+  * _trackerHost_: string
+    * **UDP**: `0.0.0.0`
+  * _port_: number
+  * _myPort_: number
+  * _infoHash_: string
+  * _left_: number
+  * _uploaded_: number
+  * _downloaded_: number
+
+`WS CLIENT:`
+ws(announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded)
+  * _announcement_ type: string
+    * `scrape`
+    * `complete`
+    * `start`
+    * `stop`
+    * `update`
+  * _trackerHost_: string
+    * **WSS**: `0.0.0.0`
+  * _port_: number
+  * _myPort_: number
+  * _infoHash_: string
+  * _left_: number
+  * _uploaded_: number
+  * _downloaded_: number
 
 
 
 ## license
 
-## ISC License (Open Source Initiative)
+### ISC License (Open Source Initiative)
 
 ISC License (ISC)
 Copyright <2017> <Craig OConnor>
