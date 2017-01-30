@@ -157,7 +157,6 @@ class Client extends EventEmitter {
         self.startConnection();
     } else {
 
-      console.log('scraping...');
       let buf = new Buffer(36);
       buf.fill(0);
 

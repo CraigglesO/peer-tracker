@@ -175,7 +175,6 @@ function handleMessage(msg, peerAddress, port, cb) {
     console.log("connectionIdLow: ", connectionIdLow);
     console.log("action: ", action);
     console.log("transaction_id: ", transaction_id);
-    console.log('ACTION: ', action);
     switch (action) {
         case ACTION_CONNECT:
             console.log("connect request: ");

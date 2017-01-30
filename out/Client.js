@@ -113,7 +113,6 @@ class Client extends events_1.EventEmitter {
             self.startConnection();
         }
         else {
-            console.log('scraping...');
             let buf = new buffer_1.Buffer(36);
             buf.fill(0);
             buf.writeUInt32BE(connectionIdHigh, 0);
