@@ -88,7 +88,33 @@ class Server {
     self.app     = express();
 
     // PREP VISUAL AID:
-    console.log(``);
+    console.log(`
+        .
+        |
+        |
+        |
+       |||
+      /___\\
+     |_   _|
+     | | | |
+    |  | |  |
+    |__| |__|
+    |  | |  |
+    |  | |  |
+    |  | |  |         Peer Tracker 1.0.1
+    |  | |  |
+    |  | |  |         Running in standalone mode
+    |  | |  |         UDP PORT:       ${self.udpPORT}
+    |  | |  |         HTTP & WS PORT: ${self.PORT}
+    |  | |  |
+    |  |_|  |
+    |__| |__|
+    |  | |  |         LET'S BUILD AN EMPIRE!
+   |   | |   |           https://github.com/CraigglesO/peer-tracker
+   |   | |   |
+  |    | |    |
+  |____| |____|
+      `);
 
     // Redis
     if (opts.docker)
@@ -101,7 +127,7 @@ class Server {
         console.log("Redis error: " + err);
     });
     client.on("ready", function() {
-      console.log("Redis is up and running.");
+      console.log(new Date() + ": Redis is up and running.");
     });
 
 
@@ -141,7 +167,7 @@ class Server {
 
     self.server.on("request", self.app.bind(self));
 
-    self.server.listen(self.PORT, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + "."); });
+    self.server.listen(self.PORT, function () { console.log(new Date() + ": HTTP Server Ready" + "\n" + new Date() + ": Websockets Ready."); });
 
 
     // WebSocket:
@@ -170,7 +196,7 @@ class Server {
       });
     });
     self.udp4.on("error", function (err) { console.log("error", err); });
-    self.udp4.on("listening", () => { console.log("UDP-4 Bound to 1337."); } );
+    self.udp4.on("listening", () => { console.log(new Date() + ": UDP-4 Bound and ready."); } );
     self.udp4.bind(self.udpPORT);
 
     self.updateStatus((info) => {
