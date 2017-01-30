@@ -1,10 +1,11 @@
 "use strict";
 
-import { EventEmitter } from "events";
+import { EventEmitter }   from "events";
 import * as writeUInt64BE from "writeUInt64BE";
-import { Buffer } from "buffer";
-import * as dgram from "dgram";
-import * as debug from "debug";
+import * as WebSocket     from "ws";
+import { Buffer }         from "buffer";
+import * as dgram         from "dgram";
+import * as debug         from "debug";
 debug("trackerClient");
 
 
@@ -15,7 +16,16 @@ const ACTION_CONNECT   = 0,
 let   connectionIdHigh = 0x417,
       connectionIdLow  = 0x27101980;
 
-class Udp extends EventEmitter {
+function udp(announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string, left: number, uploaded: number, downloaded: number) {
+  return new Client("udp", announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
+}
+
+function ws(announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string, left: number, uploaded: number, downloaded: number) {
+  return new Client("ws", announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
+}
+
+class Client extends EventEmitter {
+  TYPE:           string;
   USER:           string;
   CASE:           string;
   HOST:           string;
@@ -35,23 +45,21 @@ class Udp extends EventEmitter {
   TIMEOUT_N:      number;
   server:         any;
 
-  constructor(type: string, trackerHost: string, port: number, myPort: number, infoHash: string, left: number, uploaded: number, downloaded: number) {
+  constructor(type: string, announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string, left: number, uploaded: number, downloaded: number) {
     super();
-    if (!(this instanceof Udp))
-      return new Udp(type, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
+    if (!(this instanceof Client))
+      return new Client(type, announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
     const self = this;
 
+    self.TYPE = type;
     self.USER = "-EM0012-" + guidvC();
-    self.CASE = type;
+    self.CASE = announcement;
     self.HOST = trackerHost;
     self.HASH = infoHash;
     self.PORT = port;
     self.MY_PORT = myPort;
     self.TRANSACTION_ID = null; // This will be our method of keeping track of new connections...
     self.EVENT = 0;
-
-    // Avoid scraping unless it's a timed update
-    self.SCRAPE = true;
 
     self.LEFT       = left;
     self.UPLOADED   = uploaded;
@@ -60,44 +68,64 @@ class Udp extends EventEmitter {
     self.IP_ADDRESS = 0; // Default unless behind a proxy
 
     // Setup server
-    self.server = dgram.createSocket("udp4");
-    self.server.on("listening", function () {
-      switch (self.CASE) {
-        case "start":
-          self.EVENT = 2;
-          break;
-        case "stop":
-          self.EVENT = 3;
-          setTimeout(() => {
-            // Close the server
-            self.server.close();
-          }, 1500);
-          break;
-        case "complete":
-          self.EVENT = 1;
-          break;
-        case "update":
-          self.EVENT = 0;
-          break;
-        case "scrape":
-          self.scrape();
-          self.EVENT = 2;
-          return;
-        default:
-          self.emit("error", "Bad call signature.");
-          return;
-      }
-      self.announce();
-    });
-    self.server.on("message", function (msg, rinfo) { self.message(msg, rinfo); });
-    self.server.bind(self.MY_PORT);
+
+    if (self.TYPE === "udp") {
+      self.server = dgram.createSocket("udp4");
+      self.server.on("listening", function () {
+        self.prepAnnounce();
+      });
+      self.server.on("message", function (msg, rinfo) { self.message(msg, rinfo); });
+      self.server.bind(self.MY_PORT);
+    } else {
+      self.HOST = "ws://" + self.HOST + ":" + self.PORT;
+      self.server = new WebSocket( self.HOST );
+      self.server.on("open", function () {
+        self.prepAnnounce();
+      });
+      self.server.on('message', function(msg, flags) { self.message(msg, flags); });
+    }
+
+  }
+
+  prepAnnounce() {
+    const self = this;
+    switch (self.CASE) {
+      case "start":
+        self.EVENT = 2;
+        break;
+      case "stop":
+        self.EVENT = 3;
+        setTimeout(() => {
+          // Close the server
+          self.server.close();
+        }, 1500);
+        break;
+      case "complete":
+        self.EVENT = 1;
+        break;
+      case "update":
+        self.EVENT = 0;
+        break;
+      case "scrape":
+        self.scrape();
+        self.EVENT = 2;
+        return;
+      default:
+        self.emit("error", "Bad call signature.");
+        return;
+    }
+    self.announce();
   }
 
   sendPacket(buf: Buffer) {
     const self = this;
-    self.server.send(buf, 0, buf.length, self.PORT, self.HOST, (err) => {
-        if (err) { self.emit("error", err); }
-    });
+    if (self.TYPE === "udp") {
+      self.server.send(buf, 0, buf.length, self.PORT, self.HOST, (err) => {
+          if (err) { self.emit("error", err); }
+      });
+    } else {
+      self.server.send(buf);
+    }
   }
 
   startConnection() {
@@ -176,9 +204,13 @@ class Udp extends EventEmitter {
     }
   }
 
-  message(msg: string, rinfo: Object) {
+  message(msg: string | Buffer, rinfo: Object) {
     const self = this;
-    let buf = new Buffer(msg);
+    let buf;
+    if (!Buffer.isBuffer(msg))
+      buf = new Buffer(msg);
+    else
+      buf = msg;
 
     let action = buf.readUInt32BE(0);            // 0   32-bit integer  action   0 // connect 1 // announce 2 // scrape 3 // error
     self.TRANSACTION_ID = buf.readUInt32BE(4);   // 4   32-bit integer  transaction_id
@@ -228,19 +260,10 @@ class Udp extends EventEmitter {
 
 }
 
-class Wss extends EventEmitter {
-  constructor() {
-    super();
-    if (!(this instanceof Wss))
-      return new Wss();
-    const self = this;
-  }
-}
-
 function guidvC() {
     return Math.floor((1 + Math.random()) * 0x1000000000000)
       .toString(16)
       .substring(1);
 }
 
-export { Udp, Wss };
+export { udp, ws };

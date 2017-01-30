@@ -6,11 +6,11 @@ import * as express         from "express";
 import * as dgram           from "dgram";
 import * as readUInt64BE    from "readUInt64BE";
 import { Buffer }           from "buffer";
-import * as redis           from "redis";
 import * as _               from "lodash";
 import * as debug from "debug";
 debug("PeerTracker:Server");
 
+const redis = require("redis");
 const GeoIpNativeLite = require("geoip-native-lite");
 const bencode = require("bencode");
 
@@ -134,10 +134,10 @@ class Server {
       let port = ws._socket.remotePort; // 41435
 
       ws.on("message", function incoming(msg) {
-        console.log(msg);
-        // handleMessage(msg, peerAddress, port, (reply) => {
-        //   ws.send(reply);
-        // });
+        handleMessage(msg, peerAddress, port, (reply) => {
+          console.log('sending reply');
+          ws.send(reply);
+        });
       });
 
     });

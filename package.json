@@ -17,7 +17,7 @@
     "build+test": "npm run build && npm run all-tests",
     "lint+build+test": "npm run lint && npm run build+test",
     "prepublish": "typings install",
-    "server": "nodemon --exec ./node_modules/.bin/ts-node -- ./peer-tracker-server.ts",
+    "server": "./node_modules/.bin/ts-node ./peer-tracker-server.ts",
     "client": "nodemon --exec ./node_modules/.bin/ts-node -- ./peer-tracker-client.ts"
   },
   "author": "Craig OConnor",

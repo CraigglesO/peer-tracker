@@ -1,6 +1,8 @@
 import { Client } from "./peer-tracker";
 
-let client = new Client.Udp('start', '0.0.0.0', 1337, 6688, '01234567890123456789', 0, 0, 0);
+// let client = Client.udp("scrape", "0.0.0.0", 1337, 6688, "0123456789012345678901234567890123456789", 0, 0, 0);
+
+let client = Client.ws("start", "0.0.0.0", 80, 6688, "01234567890123456789", 0, 0, 0);
 
 
 client.on("announce", (interval, leechers, seeders, addresses) => {
