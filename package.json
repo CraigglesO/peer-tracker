@@ -1,6 +1,6 @@
 {
   "name": "peer-tracker",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "Lightweight BitTorrent Tracker Client & Server Implementation",
   "main": "./out/peer-tracker.js",
   "scripts": {
@@ -16,7 +16,8 @@
     "all-tests": "npm test",
     "build+test": "npm run build && npm run all-tests",
     "lint+build+test": "npm run lint && npm run build+test",
-    "prepublish": "typings install"
+    "prepublish": "typings install",
+    "server": "nodemon --exec ./node_modules/.bin/ts-node -- ./peer-tracker-server.ts"
   },
   "author": "Craig OConnor",
   "repository": {

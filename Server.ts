@@ -4,7 +4,7 @@ import * as url             from "url";
 import * as WebSocketServer from "ws";
 import * as express         from "express";
 import * as dgram           from "dgram";
-import readUInt64BE         from "readUInt64BE";
+import * as readUInt64BE    from "readUInt64BE";
 import { Buffer }           from "buffer";
 import * as redis           from "redis";
 import * as _               from "lodash";

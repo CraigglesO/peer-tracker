@@ -12,7 +12,13 @@
 <div align="center">
 <img src ="https://github.com/CraigglesO/peer-tracker/blob/master/img/tracker.png" /></div>
 
-The first of it's kind! A smart persistent Bittorent tracker.
+#### Ingenuity
+
+**The first of it's kind! A smart persistent Bittorent tracker.**
+
+If one server crashes, the system will not fail.
+
+Nginx will handle distributing the load.
 
 Using a Redis server, memory will be stored intermittently to ensure speed and efficiency over memory, as some loss in peers is ok.
 
