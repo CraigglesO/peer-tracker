@@ -1,6 +1,6 @@
 {
   "name": "peer-tracker",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Lightweight BitTorrent Tracker Client & Server Implementation",
   "main": "./out/peer-tracker.js",
   "scripts": {

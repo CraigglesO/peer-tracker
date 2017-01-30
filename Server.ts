@@ -172,7 +172,7 @@ class Server {
     });
     self.udp4.on("error", function (err) { console.log("error", err); });
     self.udp4.on("listening", () => { console.log("UDP-4 Bound to 1337."); } );
-    self.udp4.bind(udpServerPort);
+    self.udp4.bind(self.udpPORT);
 
     self.updateStatus((info) => {
       stats = info;

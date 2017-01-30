@@ -2,7 +2,7 @@
   "name": "peer-tracker",
   "main": "peer-tracker.d.ts",
   "homepage": "",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "globalDevDependencies": {
     "node": "registry:env/node#6.0.0+20170119204930"
   },
