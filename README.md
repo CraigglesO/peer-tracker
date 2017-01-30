@@ -24,7 +24,7 @@ See a working example [HERE](http://tracker.empire-js.us/stat)
 
 Tutorial to use on a Digital Ocean server here:
 
-**START DIGITAL OCEAN AND GET $10 FREE**
+**START USING DIGITAL OCEAN AND GET $10 FREE**
 [CLICK HERE](https://m.do.co/c/d93e8feef9dc)
 
 Docker images:

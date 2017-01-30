@@ -40,7 +40,7 @@ class Server {
         self.udp4 = dgram.createSocket({ type: "udp4", reuseAddr: true });
         self.app = express();
         if (opts.docker)
-            client = redis.createClient('6379', 'redis');
+            client = redis.createClient("6379", "redis");
         else
             client = redis.createClient();
         client.on("error", function (err) {

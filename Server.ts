@@ -65,7 +65,7 @@ let client;
 interface Options {
   port:    number;
   udpPort: number;
-  docker:  Boolean
+  docker:  Boolean;
 }
 
 class Server {
@@ -89,7 +89,7 @@ class Server {
 
     // Redis
     if (opts.docker)
-      client = redis.createClient('6379', 'redis');
+      client = redis.createClient("6379", "redis");
     else
       client = redis.createClient();
 
