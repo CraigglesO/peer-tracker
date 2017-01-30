@@ -8,9 +8,29 @@
 [downloads-url]: https://npmjs.org/package/peer-tracker
 
 ### Lightweight BitTorrent Tracker Client & (Persistent) Server Implementation
-
+<br />
+<br />
 <div align="center">
-<img src ="https://github.com/CraigglesO/peer-tracker/blob/master/img/tracker.png" /></div>
+  <img src ="https://github.com/CraigglesO/peer-tracker/blob/master/img/tracker.png" />
+</div>
+<br />
+<br />
+<br />
+### About
+
+#### Example Use
+
+See a working example [HERE](http://tracker.empire-js.us/stat)
+
+Tutorial to use on a Digital Ocean server here:
+
+**START DIGITAL OCEAN AND GET $10 FREE**
+[CLICK HERE](https://m.do.co/c/d93e8feef9dc)
+
+Docker images:
+  * **REDIS** `oconnorct1/redis:latest`
+  * **NGINX** `oconnorct1/nginx:latest`
+  * **NODE**  `oconnorct1/peer-tracker:latest`
 
 #### Ingenuity
 
@@ -48,6 +68,24 @@ new Server();
 
 Yep, literally that simple.
 (Be sure to have a Redis instance running)
+
+The server does take options, however:
+
+``` javascript
+interface Options {
+  port:    number;
+  udpPort: number;
+  docker:  Boolean
+}
+
+let opts = {
+  port:    80    // Default
+  udpPort: 1337  // Default
+  docker:  false // Default
+}
+
+new Server(opts);
+```
 
   **Client**
   ``` javascript

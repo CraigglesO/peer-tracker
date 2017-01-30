@@ -10,6 +10,12 @@ import * as _               from "lodash";
 import * as debug from "debug";
 debug("PeerTracker:Server");
 
+// Health Insurrance:
+process.on("uncaughtException", function (err) {
+  console.log(err);
+});
+
+
 const redis = require("redis");
 const GeoIpNativeLite = require("geoip-native-lite");
 const bencode = require("bencode");
@@ -38,8 +44,7 @@ interface Stats {
   countries: Object;
 }
 
-const udpServerPort         = 1337
-    , ACTION_CONNECT        = 0
+const ACTION_CONNECT        = 0
     , ACTION_ANNOUNCE       = 1
     , ACTION_SCRAPE         = 2
     , ACTION_ERROR          = 3
@@ -57,25 +62,36 @@ const FOUR_AND_FIFTEEN_DAYS = 415 * 24 * 60 * 60; // assuming start time is seco
 let client;
 
 
-
+interface Options {
+  port:    number;
+  udpPort: number;
+  docker:  Boolean
+}
 
 class Server {
-  PORT:   number;
-  server: any;
-  wss:    WebSocketServer;
-  udp4:   any;
-  app:    express;
-  constructor(port?: number) {
+  PORT:    number;
+  udpPORT: number;
+  server:  any;
+  wss:     WebSocketServer;
+  udp4:    any;
+  app:     express;
+  constructor(opts?: Options) {
     const self   = this;
-    self.PORT    = port;
+    if (!opts)
+      opts = { port: 80, udpPort: 1337, docker: false };
+
+    self.PORT    = opts.port;
+    self.udpPORT = opts.udpPort;
     self.server  = createServer();
     self.wss     = new WebSocketServer.Server({ server: self.server });
     self.udp4    = dgram.createSocket({ type: "udp4", reuseAddr: true });
     self.app     = express();
 
     // Redis
-
-    client = redis.createClient();
+    if (opts.docker)
+      client = redis.createClient('6379', 'redis');
+    else
+      client = redis.createClient();
 
     // If an error occurs, print it to the console
     client.on("error", function (err) {
@@ -122,7 +138,7 @@ class Server {
 
     self.server.on("request", self.app.bind(self));
 
-    self.server.listen((self.PORT) ? self.PORT : 80, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + "."); });
+    self.server.listen(self.PORT, function () { console.log("HTTP Express Listening on " + self.server.address().port + ",\nWebsocket Listening on " + self.server.address().port + "."); });
 
 
     // WebSocket:
