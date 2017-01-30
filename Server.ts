@@ -54,15 +54,10 @@ const FOUR_AND_FIFTEEN_DAYS = 415 * 24 * 60 * 60; // assuming start time is seco
 
 // Redis
 
-const client = redis.createClient();
+let client;
 
-// If an error occurs, print it to the console
-client.on("error", function (err) {
-    console.log("Redis error: " + err);
-});
-client.on("ready", function() {
-  console.log("Redis is up and running.");
-});
+
+
 
 class Server {
   PORT:   number;
@@ -77,6 +72,20 @@ class Server {
     self.wss     = new WebSocketServer.Server({ server: self.server });
     self.udp4    = dgram.createSocket({ type: "udp4", reuseAddr: true });
     self.app     = express();
+
+    // Redis
+
+    client = redis.createClient();
+
+    // If an error occurs, print it to the console
+    client.on("error", function (err) {
+        console.log("Redis error: " + err);
+    });
+    client.on("ready", function() {
+      console.log("Redis is up and running.");
+    });
+
+
     // Express
 
     self.app.get("/", function (req, res) {

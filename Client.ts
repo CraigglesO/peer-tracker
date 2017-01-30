@@ -1,21 +1,21 @@
 "use strict";
 
 import { EventEmitter } from "events";
+import * as writeUInt64BE from "writeUInt64BE";
 import { Buffer } from "buffer";
 import * as dgram from "dgram";
 import * as debug from "debug";
 debug("trackerClient");
 
 
-const writeUInt64BE    = require("writeUInt64BE"),
-      ACTION_CONNECT   = 0,
+const ACTION_CONNECT   = 0,
       ACTION_ANNOUNCE  = 1,
       ACTION_SCRAPE    = 2,
       ACTION_ERROR     = 3;
 let   connectionIdHigh = 0x417,
       connectionIdLow  = 0x27101980;
 
-class UdpTracker extends EventEmitter {
+class Udp extends EventEmitter {
   USER:           string;
   CASE:           string;
   HOST:           string;
@@ -37,8 +37,8 @@ class UdpTracker extends EventEmitter {
 
   constructor(type: string, trackerHost: string, port: number, myPort: number, infoHash: string, left: number, uploaded: number, downloaded: number) {
     super();
-    if (!(this instanceof UdpTracker))
-      return new UdpTracker(type, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
+    if (!(this instanceof Udp))
+      return new Udp(type, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
     const self = this;
 
     self.USER = "-EM0012-" + guidvC();
@@ -71,7 +71,7 @@ class UdpTracker extends EventEmitter {
           setTimeout(() => {
             // Close the server
             self.server.close();
-          }, 300);
+          }, 1500);
           break;
         case "complete":
           self.EVENT = 1;
@@ -228,11 +228,11 @@ class UdpTracker extends EventEmitter {
 
 }
 
-class WssTracker extends EventEmitter {
+class Wss extends EventEmitter {
   constructor() {
     super();
-    if (!(this instanceof WssTracker))
-      return new WssTracker();
+    if (!(this instanceof Wss))
+      return new Wss();
     const self = this;
   }
 }
@@ -243,4 +243,4 @@ function guidvC() {
       .substring(1);
 }
 
-export { UdpTracker, WssTracker };
+export { Udp, Wss };
