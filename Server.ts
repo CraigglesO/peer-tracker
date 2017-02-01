@@ -4,7 +4,7 @@ import * as url             from "url";
 import * as WebSocketServer from "ws";
 import * as express         from "express";
 import * as dgram           from "dgram";
-import * as readUInt64BE    from "readUInt64BE";
+import * as readUInt64BE    from "readuint64be";
 import { Buffer }           from "buffer";
 import * as _               from "lodash";
 import * as debug from "debug";
@@ -130,11 +130,16 @@ class Server {
       console.log(new Date() + ": Redis is up and running.");
     });
 
+    self.app.set("trust proxy", function (ip) {
+      return true;
+    });
+
 
     // Express
 
     self.app.get("/", function (req, res) {
-      res.status(202).send("Welcome to the Empire.");
+      let ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+      res.status(202).send("Welcome to the Empire. Your address: " + ip );
     });
 
     self.app.get("/stat.json", function (req, res) {
@@ -143,7 +148,7 @@ class Server {
 
     self.app.get("/stat", function (req, res) {
       // { seedCount, leechCount, torrentCount, activeTcount, scrapeCount, successfulDown, countries };
-      let parsedResponce = `<h1>${stats.torrentCount} Torrents {${stats.activeTcount} active}</h1>\n
+      let parsedResponce = `<h1><span style="color:blue;">V1.0.3</span> - ${stats.torrentCount} Torrents {${stats.activeTcount} active}</h1>\n
                             <h2>Successful Downloads: ${stats.successfulDown}</h2>\n
                             <h2>Number of Scrapes to this tracker: ${stats.scrapeCount}</h2>\n
                             <h3>Connected Peers: ${stats.seedCount + stats.leechCount}</h3>\n
@@ -174,8 +179,18 @@ class Server {
 
     self.wss.on("connection", function connection(ws) {
       // let location = url.parse(ws.upgradeReq.url, true);
-      let peerAddress = ws._socket.remoteAddress; // '74.125.224.194'
-      let port = ws._socket.remotePort; // 41435
+
+      let ip;
+      let peerAddress;
+      let port;
+      if (opts.docker) {
+        ip          = ws.upgradeReq.headers["x-forwarded-for"];
+        peerAddress = ip.split(":")[0];
+        port        = ip.split(":")[1];
+      } else {
+        peerAddress = ws._socket.remoteAddress;
+        port        = ws._socket.remotePort;
+      }
 
       ws.on("message", function incoming(msg) {
         handleMessage(msg, peerAddress, port, (reply) => {
@@ -188,6 +203,8 @@ class Server {
 
     // UDP:
 
+    self.udp4.bind(self.udpPORT);
+
     self.udp4.on("message", function (msg, rinfo) {
       handleMessage(msg, rinfo.address, rinfo.port, (reply) => {
         self.udp4.send(reply, 0, reply.length, rinfo.port, rinfo.address, (err) => {
@@ -197,7 +214,6 @@ class Server {
     });
     self.udp4.on("error", function (err) { console.log("error", err); });
     self.udp4.on("listening", () => { console.log(new Date() + ": UDP-4 Bound and ready."); } );
-    self.udp4.bind(self.udpPORT);
 
     self.updateStatus((info) => {
       stats = info;

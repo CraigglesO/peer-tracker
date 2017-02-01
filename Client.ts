@@ -1,7 +1,7 @@
 "use strict";
 
 import { EventEmitter }   from "events";
-import * as writeUInt64BE from "writeUInt64BE";
+import * as writeUInt64BE from "writeuint64be";
 import * as WebSocket     from "ws";
 import { Buffer }         from "buffer";
 import * as dgram         from "dgram";
