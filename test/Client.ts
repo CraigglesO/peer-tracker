@@ -6,13 +6,13 @@ test("udp Client downloading scrape", (t) => {
   t.plan(14);
   let r = randomHash();
 
-  let client = Client.udp("scrape", "0.0.0.0", 1337, 6622, r, 10, 10, 10);
+  let client = Client.udp("scrape", "tracker.empire-js.us", 1337, 6622, r, 10, 10, 10);
 
   client.on("announce", (interval, leechers, seeders, addresses) => {
     t.equal(interval, 1801,           "announce - interval");
     t.equal(leechers, 0,              "announce - leechers");
     t.equal(seeders,  0,              "announce - seeders");
-    t.equal(addresses.toString(), '', "announce - addresses");
+    t.equal(addresses.toString(), "", "announce - addresses");
   });
 
   client.on("scrape", (seeders, completed, leechers) => {
@@ -22,12 +22,12 @@ test("udp Client downloading scrape", (t) => {
   });
 
   setTimeout(() => {
-    client = Client.udp("scrape", "0.0.0.0", 1337, 6623, r, 10, 10, 10);
+    client = Client.udp("scrape", "tracker.empire-js.us", 1337, 6623, r, 10, 10, 10);
     client.on("announce", (interval, leechers, seeders, addresses) => {
       t.equal(interval, 1801,           "announce - interval");
       t.equal(leechers, 1,              "announce - leechers");
       t.equal(seeders,  0,              "announce - seeders");
-      t.equal(addresses.toString(), '127.0.0.1:6622', "announce - addresses");
+      t.equal(addresses.toString(), "76.4.8.180:6622", "announce - addresses");
     });
 
     client.on("scrape", (seeders, completed, leechers) => {
@@ -42,13 +42,13 @@ test("ws Client downloading scrape", (t) => {
   t.plan(14);
   let r = randomHash();
 
-  let client = Client.ws("scrape", "0.0.0.0", 80, 6622, r, 10, 10, 10);
+  let client = Client.ws("scrape", "tracker.empire-js.us", 80, 6622, r, 10, 10, 10);
 
   client.on("announce", (interval, leechers, seeders, addresses) => {
     t.equal(interval, 1801,           "announce - interval");
     t.equal(leechers, 0,              "announce - leechers");
     t.equal(seeders,  0,              "announce - seeders");
-    t.equal(addresses.toString(), '', "announce - addresses");
+    t.equal(addresses.toString(), "", "announce - addresses");
   });
 
   client.on("scrape", (seeders, completed, leechers) => {
@@ -58,12 +58,12 @@ test("ws Client downloading scrape", (t) => {
   });
 
   setTimeout(() => {
-    client = Client.ws("scrape", "0.0.0.0", 80, 6623, r, 10, 10, 10);
+    client = Client.ws("scrape", "tracker.empire-js.us", 80, 6623, r, 10, 10, 10);
     client.on("announce", (interval, leechers, seeders, addresses) => {
       t.equal(interval, 1801,           "announce - interval");
       t.equal(leechers, 1,              "announce - leechers");
       t.equal(seeders,  0,              "announce - seeders");
-      t.equal(addresses.toString(), '0.0.0.0:0', "announce - addresses");
+      t.equal(addresses.toString(), "0.0.0.0:0", "announce - addresses");
     });
 
     client.on("scrape", (seeders, completed, leechers) => {

@@ -6,4 +6,4 @@ exports.Client = Client;
 const ClientWeb = require("./Client-web");
 exports.ClientWeb = ClientWeb;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.default = ClientWeb;
+exports.default = Client;

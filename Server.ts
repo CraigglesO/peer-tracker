@@ -617,17 +617,17 @@ function handleMessage(msg, peerAddress, port, type, cb) {
 }
 
 function binaryToHex(str) {
-  if (typeof str !== 'string') {
+  if (typeof str !== "string") {
     str = String(str);
   }
-  return Buffer.from(str, 'binary').toString('hex');
+  return Buffer.from(str, "binary").toString("hex");
 }
 
 function hexToBinary(str) {
-  if (typeof str !== 'string') {
+  if (typeof str !== "string") {
     str = String(str);
   }
-  return Buffer.from(str, 'hex').toString('binary');
+  return Buffer.from(str, "hex").toString("binary");
 }
 
 
