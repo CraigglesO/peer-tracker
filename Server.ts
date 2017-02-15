@@ -140,6 +140,8 @@ class Server {
 
     self.app.get("/", function (req, res) {
       let ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+      if (ip.indexOf("::ffff:") !== -1)
+        ip = ip.slice(7);
       res.status(202).send("Welcome to the Empire. Your address: " + ip );
     });
 
@@ -192,6 +194,9 @@ class Server {
         peerAddress = ws._socket.remoteAddress;
         port        = ws._socket.remotePort;
       }
+
+      if (peerAddress.indexOf("::ffff:") !== -1)
+        peerAddress = peerAddress.slice(7);
 
       ws.on("message", function incoming(msg) {
         handleMessage(msg, peerAddress, port, "ws", (reply) => {
@@ -347,9 +352,9 @@ function handleMessage(msg, peerAddress, port, type, cb) {
       // Create a new Connection ID and Transaction ID for this user... kill after 30 seconds:
       let newConnectionIDHigh = ~~((Math.random() * 100000) + 1);
       let newConnectionIDLow  = ~~((Math.random() * 100000) + 1);
-      client.setex(peerAddress + ":" + newConnectionIDHigh, 60, 1);
-      client.setex(peerAddress + ":" + newConnectionIDLow, 60, 1);
-      client.setex(peerAddress + ":" + startConnectionIdLow, 60, 1);
+      client.setex(peerAddress + ":" + newConnectionIDHigh,   60, 1);
+      client.setex(peerAddress + ":" + newConnectionIDLow,    60, 1);
+      client.setex(peerAddress + ":" + startConnectionIdLow,  60, 1);
       client.setex(peerAddress + ":" + startConnectionIdHigh, 60, 1);
       // client.setex(peerAddress + ':' + transaction_id     , 30 * 1000, 1); // THIS MIGHT BE WRONG
 

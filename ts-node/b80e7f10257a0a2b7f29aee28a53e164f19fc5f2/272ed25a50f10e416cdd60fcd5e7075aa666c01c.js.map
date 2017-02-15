@@ -1,0 +1,1 @@
+{"version":3,"file":"/Users/connor/Desktop/Programming/myModules/peer-tracker/peer-tracker-server.ts","sources":["/Users/connor/Desktop/Programming/myModules/peer-tracker/peer-tracker-server.ts"],"names":[],"mappings":";AAAA,iDAAwC;AAExC,IAAI,MAAM,GAAG,IAAI,qBAAM,EAAE,CAAC","sourcesContent":["import { Server } from \"./peer-tracker\";\n\nlet server = new Server();\n"]}

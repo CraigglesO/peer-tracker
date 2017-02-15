@@ -1,6 +1,6 @@
 "use strict";
 const peer_tracker_1 = require("./peer-tracker");
-let client = peer_tracker_1.Client.ws("complete", "tracker.empire-js.us", 80, 1339, "ab23b56d8df123456c89ad234567890c23456a89", 10, 10, 10);
+let client = peer_tracker_1.Client.ws("scrape", "0.0.0.0", 80, 80, "ab23b56d8df123456c89ad234567890c23456a89", 10, 10, 10);
 client.on("announce", (interval, leechers, seeders, addresses) => {
     console.log("interval:", interval);
     console.log("leechers:", leechers);
