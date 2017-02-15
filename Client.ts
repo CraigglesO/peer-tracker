@@ -5,11 +5,9 @@ import * as writeUInt64BE from "writeuint64be";
 import * as WebSocket     from "ws";
 import { Buffer }         from "buffer";
 import * as dgram         from "dgram";
-import * as debug         from "debug";
-debug("trackerClient");
 
-
-const ACTION_CONNECT   = 0,
+const debug            = require("debug")("PeerTracker:Client"),
+      ACTION_CONNECT   = 0,
       ACTION_ANNOUNCE  = 1,
       ACTION_SCRAPE    = 2,
       ACTION_ERROR     = 3;
@@ -25,6 +23,7 @@ function ws(announcement: string, trackerHost: string, port: number, myPort: num
 }
 
 class Client extends EventEmitter {
+  _debugId:       number;
   TYPE:           string;
   USER:           string;
   CASE:           string;
@@ -34,7 +33,7 @@ class Client extends EventEmitter {
   MY_PORT:        number;
   TRANSACTION_ID: number;
   EVENT:          number;
-  SCRAPE:         Boolean;
+  SCRAPE:         boolean;
   DOWNLOADED:     number;
   LEFT:           number;
   UPLOADED:       number;
@@ -51,6 +50,8 @@ class Client extends EventEmitter {
       return new Client(type, announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
     const self = this;
 
+    self._debugId = ~~((Math.random() * 100000) + 1);
+    self._debug("peer-tracker Server instance created");
     self.TYPE = type;
     self.USER = "-EM0012-" + guidvC();
     self.CASE = announcement;
@@ -264,6 +265,11 @@ class Client extends EventEmitter {
       // Close the server
       self.server.close();
     }
+  }
+
+  _debug = (...args: any[]) => {
+    args[0] = "[" + this._debugId + "] " + args[0];
+    debug.apply(null, args);
   }
 
 }

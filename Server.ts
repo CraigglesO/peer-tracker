@@ -7,18 +7,16 @@ import * as dgram           from "dgram";
 import * as readUInt64BE    from "readuint64be";
 import { Buffer }           from "buffer";
 import * as _               from "lodash";
-import * as debug from "debug";
-debug("PeerTracker:Server");
 
 // Health Insurrance:
 process.on("uncaughtException", function (err) {
   console.log(err);
 });
 
-
-const redis = require("redis");
-const GeoIpNativeLite = require("geoip-native-lite");
-const bencode = require("bencode");
+const debug           = require("debug")("PeerTracker:Server"),
+      redis           = require("redis"),
+      GeoIpNativeLite = require("geoip-native-lite"),
+      bencode         = require("bencode");
 
 // Load in GeoData
 GeoIpNativeLite.loadDataSync();
@@ -69,17 +67,20 @@ interface Options {
 }
 
 class Server {
-  PORT:    number;
-  udpPORT: number;
-  server:  any;
-  wss:     WebSocketServer;
-  udp4:    any;
-  app:     express;
+  _debugId: number;
+  PORT:     number;
+  udpPORT:  number;
+  server:   any;
+  wss:      WebSocketServer;
+  udp4:     any;
+  app:      express;
   constructor(opts?: Options) {
     const self   = this;
     if (!opts)
       opts = { port: 80, udpPort: 1337, docker: false };
 
+    self._debugId = ~~((Math.random() * 100000) + 1);
+    self._debug("peer-tracker Server instance created");
     self.PORT    = opts.port;
     self.udpPORT = opts.udpPort;
     self.server  = createServer();
@@ -101,7 +102,7 @@ class Server {
     |__| |__|
     |  | |  |
     |  | |  |
-    |  | |  |         Peer Tracker 1.0.1
+    |  | |  |         Peer Tracker 1.1.0
     |  | |  |
     |  | |  |         Running in standalone mode
     |  | |  |         UDP PORT:       ${self.udpPORT}
@@ -113,7 +114,7 @@ class Server {
    |   | |   |           https://github.com/CraigglesO/peer-tracker
    |   | |   |
   |    | |    |
-  |____| |____|
+  |____|_|____|
       `);
 
     // Redis
@@ -193,7 +194,7 @@ class Server {
       }
 
       ws.on("message", function incoming(msg) {
-        handleMessage(msg, peerAddress, port, (reply) => {
+        handleMessage(msg, peerAddress, port, "ws", (reply) => {
           ws.send(reply);
         });
       });
@@ -206,7 +207,7 @@ class Server {
     self.udp4.bind(self.udpPORT);
 
     self.udp4.on("message", function (msg, rinfo) {
-      handleMessage(msg, rinfo.address, rinfo.port, (reply) => {
+      handleMessage(msg, rinfo.address, rinfo.port, "udp", (reply) => {
         self.udp4.send(reply, 0, reply.length, rinfo.port, rinfo.address, (err) => {
           if (err) { console.log("udp4 error: ", err); };
         });
@@ -230,7 +231,6 @@ class Server {
 
   updateStatus(cb) {
     const self = this;
-    // TODO: Get client versions
     // Get hashes -> iterate through hashes and get all peers and leechers
     // Also get number of scrapes 'scrape'
     // Number of active hashes hash+':time'
@@ -298,13 +298,18 @@ class Server {
 
   }
 
+  _debug = (...args: any[]) => {
+    args[0] = "[" + this._debugId + "] " + args[0];
+    debug.apply(null, args);
+  }
+
 }
 
 
 
 // MESSAGE FUNCTIONS:
 
-function handleMessage(msg, peerAddress, port, cb) {
+function handleMessage(msg, peerAddress, port, type, cb) {
   // PACKET SIZES:
   // CONNECT: 16 - ANNOUNCE: 98 - SCRAPE: 16 OR (16 + 20 * n)
   let buf              = new Buffer(msg),
@@ -352,16 +357,16 @@ function handleMessage(msg, peerAddress, port, cb) {
       responce = new Buffer(16);
       responce.fill(0);
 
-      responce.writeUInt32BE(ACTION_CONNECT, 0);       // 0       32-bit integer  action          0 // connect
-      responce.writeUInt32BE(transaction_id, 4);       // 4       32-bit integer  transaction_id
-      responce.writeUInt32BE(newConnectionIDHigh, 8);  // 8       64-bit integer  connection_id
+      responce.writeUInt32BE(ACTION_CONNECT, 0);        // 0       32-bit integer  action          0 // connect
+      responce.writeUInt32BE(transaction_id, 4);        // 4       32-bit integer  transaction_id
+      responce.writeUInt32BE(newConnectionIDHigh, 8);   // 8       64-bit integer  connection_id
       responce.writeUInt32BE(newConnectionIDLow, 12);   // 8       64-bit integer  connection_id
       cb(responce);
       break;
 
-    case ACTION_ANNOUNCE:
+    case ACTION_ANNOUNCE: // 1
       // Checks to make sure the packet is worth analyzing:
-      // 1. packet is atleast 40 bytes
+      // 1. packet is atleast 84 bytes
       if (bufLength < 84) {
         ERROR();
         break;
@@ -369,7 +374,7 @@ function handleMessage(msg, peerAddress, port, cb) {
       // Minimal requirements:
       hash             = buf.slice(16, 36);
       hash             = hash.toString("hex");
-      PEER_ID          = buf.slice(36, 56);  // -WD0017-I0mH4sMSAPOJ && -LT1000-9BjtQhMtTtTc
+      PEER_ID          = buf.slice(36, 56);         // -WD0017-I0mH4sMSAPOJ && -LT1000-9BjtQhMtTtTc
       PEER_ID          = PEER_ID.toString();
       let DOWNLOADED   = readUInt64BE(buf, 56),
           LEFT         = readUInt64BE(buf, 64),
@@ -385,30 +390,29 @@ function handleMessage(msg, peerAddress, port, cb) {
       // 2. check that Transaction ID and Connection ID match
       client.mget([peerAddress + ":" + connectionIdHigh, peerAddress + ":" + connectionIdLow], (err, reply) => {
         if ( !reply[0] || !reply[1] || err ) { ERROR(); return; }
-
+        addHash(hash);
         // Check EVENT // 0: none; 1: completed; 2: started; 3: stopped
         // If 1, 2, or 3 do sets first.
         if (EVENT === 1) {
           // Change the array this peer is housed in.
-          removePeer(peerAddress + ":" + peerPort, hash + ":leechers");
-          addPeer(peerAddress + ":" + peerPort, hash + ":seeders");
+          removePeer(peerAddress + ":" + peerPort, hash + type + ":leechers");
+          addPeer(peerAddress + ":" + peerPort, hash + type + ":seeders");
           // Increment total users who completed file
           client.incr(hash + ":completed");
-          addHash(hash);
         } else if (EVENT === 2) {
           // Add to array (leecher array if LEFT is > 0)
           if (LEFT > 0)
-            addPeer(peerAddress + ":" + peerPort, hash + ":leechers");
+            addPeer(peerAddress + ":" + peerPort, hash + type + ":leechers");
           else
-            addPeer(peerAddress + ":" + peerPort, hash + ":seeders");
+            addPeer(peerAddress + ":" + peerPort, hash + type + ":seeders");
         } else if (EVENT === 3) {
           // Remove peer from array (leecher array if LEFT is > 0)
-          removePeer(peerAddress + ":" + peerPort, hash + ":leechers");
-          removePeer(peerAddress + ":" + peerPort, hash + ":seeders");
+          removePeer(peerAddress + ":" + peerPort, hash + type + ":leechers");
+          removePeer(peerAddress + ":" + peerPort, hash + type + ":seeders");
           return;
         }
 
-        client.mget([hash + ":seeders", hash + ":leechers"], (err, rply) => {
+        client.mget([hash + type + ":seeders", hash + type + ":leechers"], (err, rply) => {
           if ( err ) { ERROR(); return; }
 
           // Convert all addresses to a proper hex buffer:
@@ -419,7 +423,7 @@ function handleMessage(msg, peerAddress, port, cb) {
           responce = new Buffer(20);
           responce.fill(0);
 
-          responce.writeUInt32BE(ACTION_ANNOUNCE, 0);          // 0           32-bit integer  action          1 // announce
+          responce.writeUInt32BE(ACTION_ANNOUNCE, 0);          // 0           32-bit integer  action          1 -> announce
           responce.writeUInt32BE(transaction_id, 4);           // 4           32-bit integer  transaction_id
           responce.writeUInt32BE(INTERVAL, 8);                 // 8           32-bit integer  interval
           responce.writeUInt32BE(addresses[0], 12);            // 12          32-bit integer  leechers
@@ -433,15 +437,16 @@ function handleMessage(msg, peerAddress, port, cb) {
       });
       break;
 
-    case ACTION_SCRAPE:
+    case ACTION_SCRAPE: // 2
       // Check whether the transaction ID is equal to the one you chose.
       // 2. check that Transaction ID and Connection ID match
 
       // addresses return: 0 - leechers; 1 - seeders; 2 - hexedUp address-port pairs; 3 - resulting buffersize
       // Create a responce buffer:
+      client.incr("scrape");
       let responces = new Buffer( 8 );
       responces.fill(0);
-      responces.writeUInt32BE(ACTION_SCRAPE, 0);    // 0           32-bit integer  action          1 // announce
+      responces.writeUInt32BE(ACTION_SCRAPE, 0);    // 0           32-bit integer  action          2 -> scrape
       responces.writeUInt32BE(transaction_id, 4);   // 4           32-bit integer  transaction_id
       let bufferSum = [];
       // LOOP THROUGH REQUESTS
@@ -449,7 +454,7 @@ function handleMessage(msg, peerAddress, port, cb) {
         hash = buf.slice(i, i + 20);
         hash = hash.toString("hex");
 
-        client.mget([hash + ":seeders", hash + ":leechers", hash + ":completed"], (err, rply) => {
+        client.mget([hash + type + ":seeders", hash + type +  ":leechers", hash + type +  ":completed"], (err, rply) => {
           if ( err ) { ERROR(); return; }
 
           // convert all addresses to a proper hex buffer:
@@ -609,6 +614,20 @@ function handleMessage(msg, peerAddress, port, cb) {
     return r;
   }
 
+}
+
+function binaryToHex(str) {
+  if (typeof str !== 'string') {
+    str = String(str);
+  }
+  return Buffer.from(str, 'binary').toString('hex');
+}
+
+function hexToBinary(str) {
+  if (typeof str !== 'string') {
+    str = String(str);
+  }
+  return Buffer.from(str, 'hex').toString('binary');
 }
 
 
