@@ -4,7 +4,6 @@ import { EventEmitter }   from "events";
 import * as writeUInt64BE from "writeuint64be";
 import * as WebSocket     from "ws";
 import { Buffer }         from "buffer";
-import * as dgram         from "dgram";
 
 const debug            = require("debug")("PeerTracker:Client"),
       ACTION_CONNECT   = 0,
@@ -14,15 +13,11 @@ const debug            = require("debug")("PeerTracker:Client"),
 let   connectionIdHigh = 0x417,
       connectionIdLow  = 0x27101980;
 
-function udp(announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string | Array<string>, left: number, uploaded: number, downloaded: number) {
-  return new Client("udp", announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
-}
-
 function ws(announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string | Array<string>, left: number, uploaded: number, downloaded: number) {
-  return new Client("ws", announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
+  return new ClientWeb("ws", announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
 }
 
-class Client extends EventEmitter {
+class ClientWeb extends EventEmitter {
   _debugId:       number;
   TYPE:           string;
   USER:           string;
@@ -46,8 +41,8 @@ class Client extends EventEmitter {
 
   constructor(type: string, announcement: string, trackerHost: string, port: number, myPort: number, infoHash: string | Array<string>, left: number, uploaded: number, downloaded: number) {
     super();
-    if (!(this instanceof Client))
-      return new Client(type, announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
+    if (!(this instanceof ClientWeb))
+      return new ClientWeb(type, announcement, trackerHost, port, myPort, infoHash, left, uploaded, downloaded);
     const self = this;
 
     self._debugId = ~~((Math.random() * 100000) + 1);
@@ -72,21 +67,12 @@ class Client extends EventEmitter {
 
     // Setup server
 
-    if (self.TYPE === "udp") {
-      self.server = dgram.createSocket("udp4");
-      self.server.on("listening", function () {
-        self.prepAnnounce();
-      });
-      self.server.on("message", function (msg, rinfo) { self.message(msg, rinfo); });
-      self.server.bind(self.MY_PORT);
-    } else {
-      self.HOST = "ws://" + self.HOST + ":" + self.PORT;
-      self.server = new WebSocket( self.HOST );
-      self.server.on("open", function () {
-        self.prepAnnounce();
-      });
-      self.server.on("message", function(msg, flags) { self.message(msg, flags); });
-    }
+    self.HOST = "ws://" + self.HOST + ":" + self.PORT;
+    self.server = new WebSocket( self.HOST );
+    self.server.on("open", function () {
+      self.prepAnnounce();
+    });
+    self.server.on("message", function(msg, flags) { self.message(msg, flags); });
 
   }
 
@@ -280,4 +266,4 @@ function guidvC() {
       .substring(1);
 }
 
-export { udp, ws };
+export { ws };
