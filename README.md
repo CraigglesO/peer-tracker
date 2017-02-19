@@ -1,4 +1,5 @@
-# peer-tracker [![travis][travis-image]][travis-url] [![npm][npm-image]][npm-url] [![downloads][downloads-image]][downloads-url]
+# peer-tracker [![travis][travis-image]][travis-url] [![npm][npm-image]][npm-url] [![downloads][downloads-image]][downloads-url] [![Greenkeeper badge](https://badges.greenkeeper.io/CraigglesO/peer-tracker.svg)](https://greenkeeper.io/)
+
 
 [travis-image]: https://travis-ci.org/CraigglesO/peer-tracker.svg?branch=master
 [travis-url]: https://travis-ci.org/CraigglesO/peer-tracker
