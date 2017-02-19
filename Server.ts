@@ -16,7 +16,8 @@ process.on("uncaughtException", function (err) {
 const debug           = require("debug")("PeerTracker:Server"),
       redis           = require("redis"),
       GeoIpNativeLite = require("geoip-native-lite"),
-      bencode         = require("bencode");
+      bencode         = require("bencode"),
+      cors            = require("cors");
 
 // Load in GeoData
 GeoIpNativeLite.loadDataSync();
@@ -83,10 +84,10 @@ class Server {
     self._debug("peer-tracker Server instance created");
     self.PORT    = opts.port;
     self.udpPORT = opts.udpPort;
+    self.app     = express();
     self.server  = createServer();
     self.wss     = new WebSocketServer.Server({ server: self.server });
     self.udp4    = dgram.createSocket({ type: "udp4", reuseAddr: true });
-    self.app     = express();
 
     // PREP VISUAL AID:
     console.log(`
@@ -99,15 +100,12 @@ class Server {
      |_   _|
      | | | |
     |  | |  |
-    |__| |__|
+    |__| |__|         Peer Tracker 1.2.0
     |  | |  |
-    |  | |  |
-    |  | |  |         Peer Tracker 1.1.0
     |  | |  |
     |  | |  |         Running in standalone mode
     |  | |  |         UDP PORT:       ${self.udpPORT}
     |  | |  |         HTTP & WS PORT: ${self.PORT}
-    |  | |  |
     |  |_|  |
     |__| |__|
     |  | |  |         LET'S BUILD AN EMPIRE!
@@ -151,7 +149,7 @@ class Server {
 
     self.app.get("/stat", function (req, res) {
       // { seedCount, leechCount, torrentCount, activeTcount, scrapeCount, successfulDown, countries };
-      let parsedResponce = `<h1><span style="color:blue;">V1.0.3</span> - ${stats.torrentCount} Torrents {${stats.activeTcount} active}</h1>\n
+      let parsedResponce = `<h1><span style="color:blue;">V1.2.0</span> - ${stats.torrentCount} Torrents {${stats.activeTcount} active}</h1>\n
                             <h2>Successful Downloads: ${stats.successfulDown}</h2>\n
                             <h2>Number of Scrapes to this tracker: ${stats.scrapeCount}</h2>\n
                             <h3>Connected Peers: ${stats.seedCount + stats.leechCount}</h3>\n
@@ -174,8 +172,6 @@ class Server {
     });
 
     self.server.on("request", self.app.bind(self));
-
-    self.server.listen(self.PORT, function () { console.log(new Date() + ": HTTP Server Ready" + "\n" + new Date() + ": Websockets Ready."); });
 
 
     // WebSocket:
@@ -230,6 +226,8 @@ class Server {
         stats = info;
       });
     }, 30 * 60 * 1000);
+
+    self.server.listen(self.PORT, function () { console.log(new Date() + ": HTTP Server Ready" + "\n" + new Date() + ": Websockets Ready."); });
 
   }
 
