@@ -12,3 +12,6 @@ client.on("scrape", (seeders, completed, leechers) => {
     console.log("completed", completed);
     console.log("leechers", leechers);
 });
+client.on("error", (err) => {
+    console.log("error", err);
+});

@@ -51,7 +51,7 @@ class Client extends EventEmitter {
     const self = this;
 
     self._debugId = ~~((Math.random() * 100000) + 1);
-    self._debug("peer-tracker Server instance created");
+    self._debug("peer-tracker Client instance created");
     self.TYPE = type;
     self.USER = "-EM0012-" + guidvC();
     self.CASE = announcement;
@@ -78,7 +78,7 @@ class Client extends EventEmitter {
         self.prepAnnounce();
       });
       self.server.on("message", function (msg, rinfo) { self.message(msg, rinfo); });
-      self.server.bind(self.MY_PORT);
+      self.server.bind();
     } else {
       self.HOST = "ws://" + self.HOST + ":" + self.PORT;
       self.server = new WebSocket( self.HOST );
