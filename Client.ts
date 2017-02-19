@@ -94,9 +94,11 @@ class Client extends EventEmitter {
     const self = this;
     switch (self.CASE) {
       case "start":
+        self._debug("start (EVENT 2) called");
         self.EVENT = 2;
         break;
       case "stop":
+        self._debug("stop (EVENT 3) called");
         self.EVENT = 3;
         setTimeout(() => {
           // Close the server
@@ -104,12 +106,15 @@ class Client extends EventEmitter {
         }, 1500);
         break;
       case "complete":
+        self._debug("complete (EVENT 1) called");
         self.EVENT = 1;
         break;
       case "update":
+        self._debug("update (EVENT 0) called");
         self.EVENT = 0;
         break;
       case "scrape":
+        self._debug("scrape (EVENT 2) called");
         self.SCRAPE = true;
         self.EVENT  = 2;
         self.scrape();
@@ -123,6 +128,7 @@ class Client extends EventEmitter {
 
   sendPacket(buf: Buffer) {
     const self = this;
+    self._debug("send packet");
     if (self.TYPE === "udp") {
       self.server.send(buf, 0, buf.length, self.PORT, self.HOST, (err) => {
           if (err) { self.emit("error", err); }
@@ -134,7 +140,7 @@ class Client extends EventEmitter {
 
   startConnection() {
     const self = this;
-
+    self._debug("Begin Connection");
     // Prepare for the next connection:
     self.TRANSACTION_ID = ~~( (Math.random() * 100000) + 1);
 
@@ -153,7 +159,7 @@ class Client extends EventEmitter {
 
   scrape() {
     const self = this;
-
+    self._debug("scrape");
     if (!self.TRANSACTION_ID) {
         self.startConnection();
     } else {
@@ -176,7 +182,7 @@ class Client extends EventEmitter {
   announce() {
     // EVENT: 0: none; 1: completed; 2: started; 3: stopped
     const self = this;
-
+    self._debug("announce");
     if (!self.TRANSACTION_ID) {
         self.startConnection();
     } else {
@@ -219,7 +225,7 @@ class Client extends EventEmitter {
     let action = buf.readUInt32BE(0);            // 0   32-bit integer  action   0 // connect 1 // announce 2 // scrape 3 // error
     self.TRANSACTION_ID = buf.readUInt32BE(4);   // 4   32-bit integer  transaction_id
     if (action === ACTION_CONNECT) {
-
+      self._debug("message connect");
       // Server will establish a new connection_id to talk on.
       // This connection_id dies after 5-10 seconds.
       connectionIdHigh = buf.readUInt32BE(8);     // 0   64-bit integer  connection_id
@@ -232,7 +238,7 @@ class Client extends EventEmitter {
         self.announce();
 
     } else if (action === ACTION_SCRAPE) {
-
+      self._debug("message scrape");
       for (let i = 0; i < (buf.length - 8); i += 20) {
         let seeders   = buf.readUInt32BE(8 + i),   //  8    32-bit integer  interval
             completed = buf.readUInt32BE(12 + i),  //  12   32-bit integer  completed
@@ -242,7 +248,7 @@ class Client extends EventEmitter {
       self.announce();
 
     } else if (action === ACTION_ANNOUNCE) {
-
+      self._debug("message announce");
       let interval  = buf.readUInt32BE(8),   //  8           32-bit integer  interval
           leechers  = buf.readUInt32BE(12),  //  12          32-bit integer  leechers
           seeders   = buf.readUInt32BE(16),  //  16          32-bit integer  seeders
@@ -259,6 +265,7 @@ class Client extends EventEmitter {
       self.server.close();
 
     } else if (action === ACTION_ERROR) {
+      self._debug("message error");
       let errorResponce = buf.slice(8).toString();
       self.emit("error", errorResponce);
 

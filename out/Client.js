@@ -62,21 +62,26 @@ class Client extends events_1.EventEmitter {
         const self = this;
         switch (self.CASE) {
             case "start":
+                self._debug("start (EVENT 2) called");
                 self.EVENT = 2;
                 break;
             case "stop":
+                self._debug("stop (EVENT 3) called");
                 self.EVENT = 3;
                 setTimeout(() => {
                     self.server.close();
                 }, 1500);
                 break;
             case "complete":
+                self._debug("complete (EVENT 1) called");
                 self.EVENT = 1;
                 break;
             case "update":
+                self._debug("update (EVENT 0) called");
                 self.EVENT = 0;
                 break;
             case "scrape":
+                self._debug("scrape (EVENT 2) called");
                 self.SCRAPE = true;
                 self.EVENT = 2;
                 self.scrape();
@@ -89,6 +94,7 @@ class Client extends events_1.EventEmitter {
     }
     sendPacket(buf) {
         const self = this;
+        self._debug("send packet");
         if (self.TYPE === "udp") {
             self.server.send(buf, 0, buf.length, self.PORT, self.HOST, (err) => {
                 if (err) {
@@ -102,6 +108,7 @@ class Client extends events_1.EventEmitter {
     }
     startConnection() {
         const self = this;
+        self._debug("Begin Connection");
         self.TRANSACTION_ID = ~~((Math.random() * 100000) + 1);
         let buf = new buffer_1.Buffer(16);
         buf.fill(0);
@@ -113,6 +120,7 @@ class Client extends events_1.EventEmitter {
     }
     scrape() {
         const self = this;
+        self._debug("scrape");
         if (!self.TRANSACTION_ID) {
             self.startConnection();
         }
@@ -130,6 +138,7 @@ class Client extends events_1.EventEmitter {
     }
     announce() {
         const self = this;
+        self._debug("announce");
         if (!self.TRANSACTION_ID) {
             self.startConnection();
         }
@@ -166,6 +175,7 @@ class Client extends events_1.EventEmitter {
         let action = buf.readUInt32BE(0);
         self.TRANSACTION_ID = buf.readUInt32BE(4);
         if (action === ACTION_CONNECT) {
+            self._debug("message connect");
             connectionIdHigh = buf.readUInt32BE(8);
             connectionIdLow = buf.readUInt32BE(12);
             if (self.SCRAPE)
@@ -174,6 +184,7 @@ class Client extends events_1.EventEmitter {
                 self.announce();
         }
         else if (action === ACTION_SCRAPE) {
+            self._debug("message scrape");
             for (let i = 0; i < (buf.length - 8); i += 20) {
                 let seeders = buf.readUInt32BE(8 + i), completed = buf.readUInt32BE(12 + i), leechers = buf.readUInt32BE(16 + i);
                 self.emit("scrape", seeders, completed, leechers);
@@ -181,6 +192,7 @@ class Client extends events_1.EventEmitter {
             self.announce();
         }
         else if (action === ACTION_ANNOUNCE) {
+            self._debug("message announce");
             let interval = buf.readUInt32BE(8), leechers = buf.readUInt32BE(12), seeders = buf.readUInt32BE(16), bufLength = buf.length, addresses = [];
             for (let i = 20; i < bufLength; i += 6) {
                 let address = `${buf.readUInt8(i)}.${buf.readUInt8(i + 1)}.${buf.readUInt8(i + 2)}.${buf.readUInt8(i + 3)}:${buf.readUInt16BE(i + 4)}`;
@@ -190,6 +202,7 @@ class Client extends events_1.EventEmitter {
             self.server.close();
         }
         else if (action === ACTION_ERROR) {
+            self._debug("message error");
             let errorResponce = buf.slice(8).toString();
             self.emit("error", errorResponce);
             self.server.close();

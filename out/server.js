@@ -107,6 +107,7 @@ class Server {
         });
         self.server.on("request", self.app.bind(self));
         self.wss.on("connection", function connection(ws) {
+            self._debug("new WS peer");
             let ip;
             let peerAddress;
             let port;
@@ -129,6 +130,7 @@ class Server {
         });
         self.udp4.bind(self.udpPORT);
         self.udp4.on("message", function (msg, rinfo) {
+            self._debug("udp message");
             handleMessage(msg, rinfo.address, rinfo.port, "udp", (reply) => {
                 self.udp4.send(reply, 0, reply.length, rinfo.port, rinfo.address, (err) => {
                     if (err) {
