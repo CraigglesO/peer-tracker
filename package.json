@@ -27,7 +27,7 @@
   },
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^7.0.0",
+    "@types/node": "^8.0.0",
     "babel-cli": "^6.18.0",
     "babel-preset-es2015": "^6.18.0",
     "lodash": "^4.17.4",
@@ -47,9 +47,9 @@
   },
   "dependencies": {
     "@types/lodash": "^4.14.51",
-    "@types/redis": "^0.12.34",
+    "@types/redis": "^2.6.0",
     "axios": "^0.16.0",
-    "bencode": "^0.11.0",
+    "bencode": "^0.12.0",
     "bittorrent-peerid": "^1.1.1",
     "compact2string": "^1.4.0",
     "cors": "^2.8.1",
@@ -63,6 +63,6 @@
     "response-time": "^2.3.2",
     "string2compact": "^1.2.2",
     "uniq": "^1.0.1",
-    "ws": "^2.2.0"
+    "ws": "^3.0.0"
   }
 }
