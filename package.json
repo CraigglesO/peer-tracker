@@ -33,7 +33,7 @@
     "lodash": "^4.17.4",
     "sphinxapi": "^1.2.1",
     "writeuint64be": "^1.0.3",
-    "nodemon": "^1.11.0",
+    "nodemon": "^1.17.4",
     "ts-node": "^3.0.0",
     "typescript": "^2.1.5",
     "@types/blue-tape": "^0.1.30",
