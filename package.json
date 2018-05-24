@@ -34,7 +34,7 @@
     "sphinxapi": "^1.2.1",
     "writeuint64be": "^1.0.3",
     "nodemon": "^1.11.0",
-    "ts-node": "^3.0.0",
+    "ts-node": "^6.0.4",
     "typescript": "^2.1.5",
     "@types/blue-tape": "^0.1.30",
     "blue-tape": "^1.0.0",
