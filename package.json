@@ -57,7 +57,7 @@
     "express-ws": "^2.0.0",
     "geoip-native-lite": "^0.2.0",
     "lodash": "^4.17.4",
-    "mongoose": "^4.7.6",
+    "mongoose": "^5.2.10",
     "readuint64be": "^1.0.5",
     "redis": "^2.6.3",
     "response-time": "^2.3.2",
