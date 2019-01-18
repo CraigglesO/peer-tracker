@@ -46,7 +46,7 @@
     "typings": "^2.1.0"
   },
   "dependencies": {
-    "@types/lodash": "^4.14.51",
+    "@types/lodash": "^4.14.120",
     "@types/redis": "^2.6.0",
     "axios": "^0.16.0",
     "bencode": "^0.12.0",
