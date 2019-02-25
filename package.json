@@ -51,7 +51,7 @@
     "axios": "^0.16.0",
     "bencode": "^0.12.0",
     "bittorrent-peerid": "^1.1.1",
-    "compact2string": "^1.4.0",
+    "compact2string": "^1.4.1",
     "cors": "^2.8.1",
     "express": "^4.14.0",
     "express-ws": "^2.0.0",
